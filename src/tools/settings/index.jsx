@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '@core/store';
+import { useService } from '@core/hooks/useService';
 import { TOOLS } from '@core/registry';
 import './settings.css';
 
@@ -18,8 +19,10 @@ const SettingsTool = () => {
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('ready'); // 'ready' | 'syncing' | 'error'
 
   const { appPlacements, updateAppPlacement } = useStore();
+  const { service: firebaseService } = useService('firebase-firestore');
 
   const handleUnlock = async (e) => {
     e.preventDefault();
@@ -47,8 +50,29 @@ const SettingsTool = () => {
     return appPlacements[toolId] || { dock: true, desktop: true, drawer: true };
   };
 
-  const handleToggle = (toolId, type, currentVal) => {
+  const handleToggle = async (toolId, type, currentVal) => {
+    // 1. Calculate updated placements
+    const currentPlacements = { ...appPlacements };
+    const currentToolPlacement = currentPlacements[toolId] || { dock: true, desktop: true, drawer: true };
+    const updatedToolPlacement = { ...currentToolPlacement, [type]: !currentVal };
+    const updatedPlacements = { ...currentPlacements, [toolId]: updatedToolPlacement };
+
+    // 2. Update local state
     updateAppPlacement(toolId, { [type]: !currentVal });
+
+    // 3. Write to Firestore to affect layout globally
+    if (firebaseService?.db) {
+      setCloudSyncStatus('syncing');
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const docRef = doc(firebaseService.db, 'notes', 'settings_placements');
+        await setDoc(docRef, { placements: updatedPlacements });
+        setCloudSyncStatus('ready');
+      } catch (err) {
+        console.error('Failed to save placements in Firestore:', err);
+        setCloudSyncStatus('error');
+      }
+    }
   };
 
   if (!unlocked) {
@@ -62,7 +86,7 @@ const SettingsTool = () => {
           <form onSubmit={handleUnlock} className="st-lock__form">
             <input
               type="password"
-              placeholder="Kata Sandi (111111Aa)"
+              placeholder="Kata Sandi"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`st-lock__input ${error ? 'st-lock__input--error' : ''}`}
@@ -82,8 +106,17 @@ const SettingsTool = () => {
   return (
     <div className="st">
       <div className="st-header">
-        <h3>Kustomisasi Tata Letak Aplikasi</h3>
-        <p>Atur di mana ikon shortcut aplikasi akan ditampilkan.</p>
+        <div className="st-header__row">
+          <div>
+            <h3>Kustomisasi Tata Letak Aplikasi</h3>
+            <p>Atur di mana ikon shortcut aplikasi akan ditampilkan secara global.</p>
+          </div>
+          <div className="st-cloud-status">
+            {cloudSyncStatus === 'syncing' && <span className="st-status st-status--syncing">🔄 Sinkronisasi cloud...</span>}
+            {cloudSyncStatus === 'ready' && <span className="st-status st-status--ready">🟢 Tersimpan di Cloud (remuk.id)</span>}
+            {cloudSyncStatus === 'error' && <span className="st-status st-status--error">🔴 Gagal simpan ke cloud</span>}
+          </div>
+        </div>
       </div>
 
       <div className="st-content">

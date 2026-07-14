@@ -53,6 +53,8 @@ export const useStore = create(
         });
       },
 
+      setAppPlacements: (placements) => set({ appPlacements: placements }),
+
       /**
        * Buka tool sebagai window baru
        * @param {object} tool - dari registry TOOLS

@@ -18,6 +18,13 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.st-header__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .st-header h3 {
   font-size: 16px;
   font-weight: 600;
@@ -28,6 +35,27 @@
   font-size: 12px;
   color: var(--text-secondary);
   margin-top: 4px;
+}
+
+.st-cloud-status {
+  font-size: 11px;
+}
+
+.st-status {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-subtle);
+}
+
+.st-status--syncing {
+  color: var(--color-warn);
+}
+.st-status--ready {
+  color: var(--color-accent-alt);
+}
+.st-status--error {
+  color: var(--color-danger);
 }
 
 .st-content {
