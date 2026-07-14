@@ -16,7 +16,9 @@ const sha256 = async (string) => {
 
 const SettingsTool = () => {
   const [password, setPassword] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => {
+    return sessionStorage.getItem('remuk_settings_unlocked') === 'true';
+  });
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('layout'); // 'layout' | 'folders'
@@ -70,6 +72,7 @@ const SettingsTool = () => {
     try {
       const hashed = await sha256(password);
       if (hashed === HASH_TARGET) {
+        sessionStorage.setItem('remuk_settings_unlocked', 'true');
         setUnlocked(true);
       } else {
         setError(true);

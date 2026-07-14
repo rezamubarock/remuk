@@ -47,6 +47,7 @@ const Lockscreen = ({ onUnlock }) => {
     try {
       const inputHash = await sha256(password);
       if (inputHash === HASH_TARGET) {
+        sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
         onUnlock();
       } else {
         setError(true);

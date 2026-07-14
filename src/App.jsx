@@ -10,7 +10,10 @@ const App = () => {
   const setAppPlacements = useStore((s) => s.setAppPlacements);
   const setAppOrder = useStore((s) => s.setAppOrder);
   const setFolders = useStore((s) => s.setFolders);
-  const [isLocked, setIsLocked] = useState(true);
+  
+  const [isLocked, setIsLocked] = useState(() => {
+    return sessionStorage.getItem('remuk_lockscreen_unlocked') !== 'true';
+  });
 
   // ─── Cloud settings listener ───
   const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');

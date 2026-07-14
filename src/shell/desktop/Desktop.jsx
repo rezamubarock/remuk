@@ -7,12 +7,13 @@ import NotificationCenter from '@components/Notification';
 import { useWindowManager } from '@core/hooks/useWindowManager';
 import { useStore } from '@core/store';
 import { TOOLS } from '@core/registry';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import Launchpad from './Launchpad';
 
 const Desktop = () => {
   const { focusedWindow, openTool } = useWindowManager();
+  const launchpadOpen = useStore((s) => s.launchpadOpen);
   const folders = useStore((s) => s.folders) || [];
   const appPlacements = useStore((s) => s.appPlacements);
   const appOrder = useStore((s) => s.appOrder) || [];
@@ -124,7 +125,9 @@ const Desktop = () => {
       <WindowLayer />
 
       {/* Launchpad Fullscreen Overlay */}
-      <Launchpad />
+      <AnimatePresence>
+        {launchpadOpen && <Launchpad />}
+      </AnimatePresence>
 
       {/* Dock */}
       <Dock />
