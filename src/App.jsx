@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import DeviceShell from './shell/DeviceShell';
+import Lockscreen from './shell/Lockscreen';
 import { useStore } from './core/store';
 import { getToolById } from './core/registry';
 
 const App = () => {
   const openApp = useStore((s) => s.openApp);
+  const [isLocked, setIsLocked] = useState(true);
 
   // Handle URL shortcut: ?open=tool-id
   useEffect(() => {
@@ -15,6 +17,10 @@ const App = () => {
       if (tool) openApp(tool);
     }
   }, [openApp]);
+
+  if (isLocked) {
+    return <Lockscreen onUnlock={() => setIsLocked(false)} />;
+  }
 
   return <DeviceShell />;
 };

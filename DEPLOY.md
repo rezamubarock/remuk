@@ -59,14 +59,17 @@ Isi form build settings:
 |---|---|
 | **Project name** | `remuk` |
 | **Production branch** | `main` |
-| **Framework preset** | `Vite` |
+| **Framework preset** | `None` ← pilih ini, **bukan VitePress** |
 | **Build command** | `npm run build` |
 | **Build output directory** | `dist` |
-| **Node version** | `20` |
+
+> [!WARNING]
+> **VitePress ≠ Vite.** VitePress adalah static site generator untuk dokumentasi — beda dengan project kita.
+> Pilih **"None"** lalu isi **Build command** dan **Build output directory** secara manual seperti tabel di atas.
 
 > [!NOTE]
-> Untuk set Node version, scroll ke bawah ke **"Environment variables"** dan tambahkan:
-> - **Variable**: `NODE_VERSION` → **Value**: `20`
+> Untuk set Node version ke 20, scroll ke bawah ke **"Environment variables"** dan tambahkan:
+> - **Variable name**: `NODE_VERSION` → **Value**: `20`
 
 ### Langkah 5: Deploy Pertama
 
