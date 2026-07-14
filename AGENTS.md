@@ -35,7 +35,7 @@ remuk/
 │
 ├── src/
 │   ├── main.jsx                       # ReactDOM.createRoot, import global CSS
-│   ├── App.jsx                        # Root: DeviceShell + URL shortcut handler
+│   ├── App.jsx                        # Root: Lockscreen wrapper + DeviceShell + URL shortcut handler
 │   │
 │   ├── core/                          # ← JANTUNG APLIKASI, jangan ubah sembarangan
 │   │   ├── registry.js                # ★ DAFTAR SEMUA TOOLS — edit ini untuk tambah tool
@@ -50,7 +50,8 @@ remuk/
 │   │
 │   ├── shell/                         # ← TAMPILAN OS
 │   │   ├── DeviceShell.jsx            # Switch desktop/mobile berdasarkan viewport
-│   │   ├── Wallpaper.jsx              # Animasi solar system (CSS only)
+│   │   ├── Lockscreen.jsx             # Secure lock screen (password: annelies, SHA-256 target check)
+│   │   ├── Wallpaper.jsx              # Randomized static premium mesh gradients + curves
 │   │   ├── desktop/
 │   │   │   ├── Desktop.jsx            # Assembles: Wallpaper + MenuBar + Dock + WindowLayer
 │   │   │   ├── MenuBar.jsx            # Top bar: clock real-time, nama window aktif
@@ -73,9 +74,9 @@ remuk/
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
-│       ├── shell.css                  # Styles: menubar, dock, homescreen, status bar, dll
+│       ├── shell.css                  # Styles: menubar, dock, homescreen, status bar, lockscreen, dll
 │       ├── window.css                 # Styles: window chrome, traffic lights, resize handles
-│       ├── wallpaper.css              # CSS animation solar system
+│       ├── wallpaper.css              # CSS static premium gradient & curves styling
 │       └── animations.css             # Notification styles + @keyframes global
 │
 └── .github/
