@@ -1,0 +1,368 @@
+/* ===================================================
+   NOTEPAD SEAMLESS — UI CSS STYLES
+   =================================================== */
+
+.np {
+  display: flex;
+  height: 100%;
+  background: rgba(30, 30, 42, 0.2);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ─── Sidebar ─── */
+.np-sidebar {
+  width: 250px;
+  border-right: 1px solid var(--border-subtle);
+  background: rgba(20, 20, 30, 0.4);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.np-sidebar__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.np-notes-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ─── Note Item ─── */
+.np-note-item {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.np-note-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.np-note-item--active {
+  background: rgba(255, 214, 10, 0.15) !important;
+  border-color: rgba(255, 214, 10, 0.3) !important;
+}
+
+.np-note-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.np-note-item__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.np-note-item__delete {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+  padding: 0 4px;
+}
+
+.np-note-item:hover .np-note-item__delete {
+  opacity: 1;
+}
+
+.np-note-item__delete:hover {
+  color: var(--color-danger);
+}
+
+.np-note-item__snippet {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-note-item__date {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  display: block;
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* ─── Editor ─── */
+.np-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5) var(--space-6);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.np-editor__title {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  caret-color: #ffd60a;
+}
+.np-editor__title::placeholder {
+  color: var(--text-tertiary);
+}
+
+.np-editor__content {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  caret-color: #ffd60a;
+  font-family: inherit;
+}
+.np-editor__content::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ─── Settings Panel (Overlay) ─── */
+.np-settings-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: var(--blur-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.np-settings-card {
+  width: 100%;
+  max-width: 380px;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: rgba(30, 30, 42, 0.85) !important;
+}
+
+.np-settings-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffd60a;
+}
+
+.np-settings-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.np-settings-key-badge {
+  background: rgba(255, 214, 10, 0.1);
+  border: 1px solid rgba(255, 214, 10, 0.3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #ffd60a;
+  text-align: center;
+  margin: var(--space-2) 0;
+}
+
+.np-settings-link-wrapper {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.np-settings-link {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.np-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.np-settings-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  text-align: center;
+}
+.np-settings-input:focus {
+  border-color: #ffd60a;
+}
+
+.np-settings-input--error {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 2px rgba(255, 69, 58, 0.2);
+}
+
+.np-settings-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  align-self: center;
+  padding: var(--space-1) var(--space-4);
+}
+.np-settings-close-btn:hover {
+  color: var(--text-secondary);
+}
+
+/* ─── Buttons ─── */
+.np-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.np-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+.np-btn--ghost:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.np-btn--accent {
+  background: rgba(255, 214, 10, 0.15);
+  border-color: rgba(255, 214, 10, 0.4);
+  color: #ffd60a;
+}
+.np-btn--accent:hover:not(:disabled) {
+  background: rgba(255, 214, 10, 0.25);
+}
+.np-btn--accent:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.np-btn--danger {
+  background: rgba(255, 69, 58, 0.15);
+  border-color: rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+}
+.np-btn--danger:hover {
+  background: rgba(255, 69, 58, 0.25);
+}
+
+.np-btn-row {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+/* ─── Helper States ─── */
+.np-status-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.np-status-icon--spin span {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+.np-empty-state, .np-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.np-empty-state {
+  height: 200px;
+}
+.np-empty-state span {
+  font-size: 32px;
+}
+.np-empty-state p {
+  font-size: 11px;
+}
+
+.np-editor-empty {
+  height: 100%;
+}
+.np-editor-empty span {
+  font-size: 48px;
+}
+.np-editor-empty p {
+  font-size: 13px;
+  max-width: 250px;
+}
+
+.np-error-text {
+  font-size: 11px;
+  color: var(--color-danger);
+  margin-top: -4px;
+  text-align: center;
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 768px) {
+  .np-sidebar {
+    width: 140px;
+  }
+  .np-editor {
+    padding: var(--space-4);
+  }
+}

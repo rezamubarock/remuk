@@ -78,6 +78,21 @@ export const TOOLS = [
   //   singleton: false,
   //   services: [],
   // },
+  {
+    id: 'notepad',
+    name: 'Notepad',
+    icon: '📒',
+    description: 'Catatan seamless dengan sinkronisasi realtime',
+    category: 'produktivitas',
+    color: '#FFD60A',
+    colorAlt: '#FF9F0A',
+    component: lazy(() => import('../tools/notepad')),
+    defaultSize: { width: 720, height: 500 },
+    minSize: { width: 480, height: 380 },
+    resizable: true,
+    singleton: true,
+    services: ['firebase-firestore'],
+  },
 ];
 
 /**
