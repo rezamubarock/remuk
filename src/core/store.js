@@ -33,6 +33,25 @@ export const useStore = create(
       windows: [],
       activeWindowId: null,
       snapIndicator: null, // 'left' | 'right' | null
+      
+      // ─── Customization / Launchpad State ───
+      launchpadOpen: false,
+      appPlacements: {}, // { [toolId]: { dock: bool, desktop: bool, drawer: bool } }
+
+      toggleLaunchpad: () => set((s) => ({ launchpadOpen: !s.launchpadOpen })),
+      setLaunchpadOpen: (val) => set({ launchpadOpen: val }),
+      
+      updateAppPlacement: (toolId, placement) => {
+        set((s) => {
+          const current = s.appPlacements[toolId] || { dock: true, desktop: true, drawer: true };
+          return {
+            appPlacements: {
+              ...s.appPlacements,
+              [toolId]: { ...current, ...placement }
+            }
+          };
+        });
+      },
 
       /**
        * Buka tool sebagai window baru
@@ -212,10 +231,10 @@ export const useStore = create(
       partialize: (state) => ({
         windows: state.windows.map((w) => ({
           ...w,
-          // Reset minimized state saat reload
           minimized: false,
         })),
         activeWindowId: state.activeWindowId,
+        appPlacements: state.appPlacements,
       }),
     }
   )

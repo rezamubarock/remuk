@@ -6,6 +6,8 @@ import WindowLayer from '@components/Window';
 import NotificationCenter from '@components/Notification';
 import { useWindowManager } from '@core/hooks/useWindowManager';
 
+import Launchpad from './Launchpad';
+
 const Desktop = () => {
   const { focusedWindow } = useWindowManager();
 
@@ -21,15 +23,17 @@ const Desktop = () => {
       <div
         className="desktop__workspace"
         onMouseDown={(e) => {
-          // Only deselect if clicking directly on workspace (not on window)
           if (e.target === e.currentTarget) {
-            // Deselect: no action needed, Zustand keeps last active
+            // Deselect logic
           }
         }}
       />
 
       {/* Windows */}
       <WindowLayer />
+
+      {/* Launchpad Fullscreen Overlay */}
+      <Launchpad />
 
       {/* Dock */}
       <Dock />

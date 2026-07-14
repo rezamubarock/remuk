@@ -93,6 +93,21 @@ export const TOOLS = [
     singleton: true,
     services: ['firebase-firestore'],
   },
+  {
+    id: 'settings',
+    name: 'Pengaturan',
+    icon: '⚙️',
+    description: 'Konfigurasi desktop shell, wallpaper, dan peletakan aplikasi',
+    category: 'sistem',
+    color: '#8E8E93',
+    colorAlt: '#AEAEB2',
+    component: lazy(() => import('../tools/settings')),
+    defaultSize: { width: 520, height: 450 },
+    minSize: { width: 400, height: 350 },
+    resizable: false,
+    singleton: true,
+    services: [],
+  },
 ];
 
 /**

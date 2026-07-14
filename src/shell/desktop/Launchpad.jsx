@@ -1,0 +1,102 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useStore } from '@core/store';
+import { useWindowManager } from '@core/hooks/useWindowManager';
+import { TOOLS } from '@core/registry';
+
+const LAUNCHPAD_VARIANTS = {
+  initial: { opacity: 0, scale: 1.08 },
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: 'easeOut' } },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2, ease: 'easeIn' } },
+};
+
+const Launchpad = () => {
+  const launchpadOpen = useStore((s) => s.launchpadOpen);
+  const setLaunchpadOpen = useStore((s) => s.setLaunchpadOpen);
+  const appPlacements = useStore((s) => s.appPlacements);
+  const { openTool } = useWindowManager();
+
+  const [search, setSearch] = useState('');
+
+  // Auto-focus search input when Launchpad opens
+  useEffect(() => {
+    if (launchpadOpen) {
+      setSearch('');
+    }
+  }, [launchpadOpen]);
+
+  if (!launchpadOpen) return null;
+
+  // Filter tools: must be in drawer/launchpad AND match search filter
+  const drawerApps = TOOLS.filter((tool) => {
+    const placement = appPlacements[tool.id] || { drawer: true };
+    const matchesDrawer = placement.drawer !== false;
+    const matchesSearch = tool.name.toLowerCase().includes(search.toLowerCase());
+    return matchesDrawer && matchesSearch;
+  });
+
+  const handleAppClick = (toolId) => {
+    openTool(toolId);
+    setLaunchpadOpen(false);
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="launchpad-overlay"
+        variants={LAUNCHPAD_VARIANTS}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        onClick={() => setLaunchpadOpen(false)}
+      >
+        <div className="launchpad-content" onClick={(e) => e.stopPropagation()}>
+          {/* Search bar */}
+          <div className="launchpad-search-container">
+            <input
+              type="text"
+              placeholder="Cari Aplikasi..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="launchpad-search"
+              autoFocus
+            />
+          </div>
+
+          {/* Grid list of apps */}
+          <div className="launchpad-grid">
+            {drawerApps.map((tool) => (
+              <motion.div
+                key={tool.id}
+                className="launchpad-item"
+                onClick={() => handleAppClick(tool.id)}
+                whileHover={{ scale: 1.12 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+              >
+                <div
+                  className="launchpad-item__icon"
+                  style={{
+                    background: `linear-gradient(145deg, ${tool.color || '#0A84FF'}, ${tool.colorAlt || '#5E5CE6'})`,
+                  }}
+                >
+                  <span style={{ fontSize: 44, lineHeight: 1 }}>{tool.icon}</span>
+                </div>
+                <span className="launchpad-item__label">{tool.name}</span>
+              </motion.div>
+            ))}
+
+            {drawerApps.length === 0 && (
+              <div className="launchpad-empty">
+                <span>🔍</span>
+                <p>Aplikasi tidak ditemukan</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+export default Launchpad;

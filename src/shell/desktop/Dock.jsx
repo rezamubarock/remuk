@@ -52,11 +52,43 @@ const DockIcon = ({ tool }) => {
   );
 };
 
+import { useStore } from '@core/store';
+
 /* ─── Dock Container ─── */
 const Dock = () => {
+  const toggleLaunchpad = useStore((s) => s.toggleLaunchpad);
+  const appPlacements = useStore((s) => s.appPlacements);
+
+  // Filter tools shown in dock (defaults to true if not set)
+  const dockTools = TOOLS.filter((tool) => {
+    const placement = appPlacements[tool.id] || { dock: true };
+    return placement.dock !== false;
+  });
+
   return (
     <div className="dock" role="navigation" aria-label="Dock aplikasi">
-      {TOOLS.map((tool) => (
+      {/* Permanent Launchpad Icon */}
+      <motion.div
+        className="dock-icon"
+        onClick={toggleLaunchpad}
+        whileHover={{ scale: 1.35, y: -8 }}
+        whileTap={{ scale: 1.15, y: -4 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+        title="Launchpad"
+        role="button"
+        aria-label="Buka Launchpad"
+        tabIndex={0}
+      >
+        <div className="dock-icon__app" style={{ background: 'linear-gradient(145deg, #1d1d26, #2c2c3e)' }}>
+          <span className="dock-icon__emoji">🚀</span>
+        </div>
+        <span className="dock-icon__label">Launchpad</span>
+      </motion.div>
+
+      {dockTools.length > 0 && <div className="dock__separator" />}
+
+      {/* Placed Dock Tools */}
+      {dockTools.map((tool) => (
         <DockIcon key={tool.id} tool={tool} />
       ))}
     </div>

@@ -1,0 +1,213 @@
+/* ===================================================
+   SETTINGS TOOL — CSS STYLES
+   =================================================== */
+
+.st {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(30, 30, 45, 0.4);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  overflow-y: auto;
+}
+
+.st-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.st-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.st-header p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.st-content {
+  padding: var(--space-4);
+  flex: 1;
+}
+
+/* ─── Customization Table ─── */
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.st-table th, .st-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.st-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.st-table__app-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.st-table__icon {
+  font-size: 18px;
+}
+
+.st-table__name {
+  font-weight: 500;
+}
+
+/* ─── Switch / Slider (Toggle Button) ─── */
+.st-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.st-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.st-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: .3s;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-soft);
+}
+
+.st-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+}
+
+input:checked + .st-slider {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+input:checked + .st-slider:before {
+  transform: translateX(20px);
+}
+
+/* ─── Lock Screen Screen ─── */
+.st-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-4);
+  background: rgba(10, 10, 20, 0.5);
+}
+
+.st-lock__card {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: var(--blur-md);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-lg);
+}
+
+.st-lock__icon {
+  font-size: 40px;
+}
+
+.st-lock__card h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.st-lock__card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.st-lock__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.st-lock__input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+.st-lock__input:focus {
+  border-color: var(--color-accent);
+}
+
+.st-lock__input--error {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 2px rgba(255, 69, 58, 0.2);
+}
+
+.st-lock__error-text {
+  font-size: 11px;
+  color: var(--color-danger);
+  margin-top: -4px;
+}
+
+.st-lock__btn {
+  background: var(--color-accent);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+  width: 100%;
+}
+.st-lock__btn:hover {
+  opacity: 0.9;
+}
+.st-lock__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -607,3 +607,162 @@
   }
 }
 
+/* ─── Launchpad (macOS style overlay) ─── */
+.launchpad-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-menubar) + 10);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.launchpad-content {
+  width: 100%;
+  max-width: 960px;
+  padding: 80px 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.launchpad-search-container {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 50px;
+}
+
+.launchpad-search {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  text-align: center;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.launchpad-search:focus {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: var(--color-accent);
+}
+
+.launchpad-search::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.launchpad-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 40px 20px;
+  justify-items: center;
+}
+
+.launchpad-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100px;
+}
+
+.launchpad-item__icon {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.launchpad-item__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.launchpad-empty {
+  grid-column: span 6;
+  text-align: center;
+  padding: 50px 0;
+  color: var(--text-tertiary);
+}
+
+.launchpad-empty span {
+  font-size: 40px;
+}
+
+.launchpad-empty p {
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .launchpad-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .launchpad-empty {
+    grid-column: span 4;
+  }
+}
+
+/* ─── Mobile Folder Overlay (iOS App Folder style) ─── */
+.mobile-folder-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-window) + 50);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mobile-folder-card {
+  width: 100%;
+  max-width: 300px;
+  background: rgba(28, 28, 38, 0.7) !important;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-soft);
+  padding: 24px;
+  box-shadow: var(--shadow-xl);
+}
+
+.mobile-folder-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.mobile-folder-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mobile-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px 10px;
+  justify-items: center;
+}
+
+
+
