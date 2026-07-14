@@ -1,0 +1,281 @@
+/* ===================================================
+   WALLPAPER — Solar System CSS Animation
+   =================================================== */
+
+.wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-wallpaper);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 60%, #0d0d3d 0%, #060616 40%, #020210 100%);
+}
+
+/* ─── Stars ─── */
+.wallpaper__stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 25% 40%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 20%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 55%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 80% 35%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 75%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 85%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 35% 10%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 60% 90%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 5% 55%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 45%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 88%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 20% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 60%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 95% 30%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 95%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 50%, rgba(200,200,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 15%, rgba(255,255,255,0.6) 0%, transparent 100%);
+  animation: starsTwinkle 8s ease-in-out infinite alternate;
+}
+
+.wallpaper__stars-2 {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 8% 30%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 18% 65%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 32% 50%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 48% 80%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 62% 25%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 72% 70%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 83% 45%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 60%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 3% 90%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 97% 5%, rgba(255,255,255,0.5) 0%, transparent 100%);
+  animation: starsTwinkle 12s ease-in-out infinite alternate-reverse;
+  opacity: 0.7;
+}
+
+@keyframes starsTwinkle {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+/* ─── Solar System Container ─── */
+.wallpaper__system {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+}
+
+/* ─── Sun ─── */
+.sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff5c0, #ffd700 40%, #ff8c00 70%, #ff4500);
+  box-shadow:
+    0 0 20px 8px rgba(255, 200, 0, 0.6),
+    0 0 50px 20px rgba(255, 140, 0, 0.4),
+    0 0 100px 40px rgba(255, 80, 0, 0.2),
+    0 0 200px 80px rgba(255, 50, 0, 0.1);
+  animation: sunPulse 4s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes sunPulse {
+  0%, 100% { box-shadow: 0 0 20px 8px rgba(255,200,0,0.6), 0 0 50px 20px rgba(255,140,0,0.4), 0 0 100px 40px rgba(255,80,0,0.2), 0 0 200px 80px rgba(255,50,0,0.1); }
+  50%       { box-shadow: 0 0 30px 12px rgba(255,220,0,0.8), 0 0 70px 28px rgba(255,160,0,0.5), 0 0 130px 55px rgba(255,100,0,0.25), 0 0 250px 100px rgba(255,60,0,0.12); }
+}
+
+/* ─── Orbit Rings ─── */
+.orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transform: translate(-50%, -50%);
+  animation: orbit linear infinite;
+}
+
+/* Mercury */
+.orbit--mercury {
+  width: 110px;
+  height: 110px;
+  animation-duration: 5s;
+}
+.orbit--mercury::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #d0d0d0, #888);
+  box-shadow: 0 0 6px 2px rgba(160,160,160,0.3);
+  margin-top: -4px;
+}
+
+/* Venus */
+.orbit--venus {
+  width: 160px;
+  height: 160px;
+  animation-duration: 9s;
+}
+.orbit--venus::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe8a0, #e8a000 60%, #c87800);
+  box-shadow: 0 0 8px 3px rgba(232,160,0,0.4);
+  margin-top: -6px;
+}
+
+/* Earth */
+.orbit--earth {
+  width: 220px;
+  height: 220px;
+  animation-duration: 14s;
+}
+.orbit--earth::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #a8d8f0, #1a6bb5 40%, #0a4e8a 70%, #0d3a6e);
+  box-shadow: 0 0 10px 4px rgba(26,107,181,0.5);
+  margin-top: -7px;
+}
+
+/* Mars */
+.orbit--mars {
+  width: 290px;
+  height: 290px;
+  animation-duration: 26s;
+}
+.orbit--mars::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff9060, #c1440e 50%, #8b2a00);
+  box-shadow: 0 0 8px 3px rgba(193,68,14,0.4);
+  margin-top: -5px;
+}
+
+/* Jupiter */
+.orbit--jupiter {
+  width: 390px;
+  height: 390px;
+  animation-duration: 60s;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+.orbit--jupiter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f0d090, #c89040 40%, #a06820 70%);
+  box-shadow: 0 0 14px 5px rgba(200,144,64,0.3);
+  margin-top: -11px;
+}
+
+/* Saturn */
+.orbit--saturn {
+  width: 500px;
+  height: 500px;
+  animation-duration: 100s;
+  border-color: rgba(255, 255, 255, 0.03);
+}
+.orbit--saturn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f0e0b0, #c8a860 40%, #a08040 70%);
+  box-shadow:
+    0 0 12px 4px rgba(200,168,96,0.25),
+    0 0 0 6px rgba(200,168,96,0.08),
+    0 0 0 10px rgba(200,168,96,0.04);
+  margin-top: -9px;
+}
+
+/* Uranus */
+.orbit--uranus {
+  width: 570px;
+  height: 570px;
+  animation-duration: 150s;
+  animation-direction: reverse;
+  border-color: rgba(255, 255, 255, 0.02);
+}
+.orbit--uranus::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #c0f0f0, #40a0c0 50%, #206080);
+  box-shadow: 0 0 10px 4px rgba(64,160,192,0.3);
+  margin-top: -7px;
+}
+
+@keyframes orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ─── Nebula / Glow Overlay ─── */
+.wallpaper__nebula {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 40% 30% at 15% 20%, rgba(80, 0, 180, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 35% 25% at 85% 75%, rgba(0, 60, 200, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 25% 20% at 70% 15%, rgba(0, 120, 255, 0.08) 0%, transparent 70%);
+}
+
+/* ─── Mobile: scale down solar system ─── */
+@media (max-width: 768px) {
+  .wallpaper__system {
+    width: 340px;
+    height: 340px;
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+  .sun { width: 40px; height: 40px; }
+}

@@ -1,0 +1,209 @@
+/* ─── Text Tools Styles ─── */
+.tt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans, 'Inter', sans-serif);
+}
+
+/* Stats Bar */
+.tt-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tt-stats::-webkit-scrollbar { display: none; }
+
+.tt-stat {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+.tt-stat strong {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+}
+
+/* Actions */
+.tt-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tt-actions::-webkit-scrollbar { display: none; }
+
+.tt-actions__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-right: 10px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.tt-actions__group:last-child {
+  border-right: none;
+}
+
+.tt-actions__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.tt-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 100ms ease;
+  flex-shrink: 0;
+}
+.tt-action:hover {
+  background: rgba(10,132,255,0.15);
+  border-color: rgba(10,132,255,0.35);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.tt-action:active { transform: translateY(0) scale(0.98); }
+
+.tt-action__icon { font-size: 13px; line-height: 1; }
+.tt-action__label { line-height: 1; }
+
+/* Editor */
+.tt-editor {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.tt-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.tt-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02);
+  flex-shrink: 0;
+}
+
+.tt-panel__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+}
+
+.tt-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.tt-btn--ghost {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+}
+.tt-btn--ghost:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); }
+.tt-btn--accent {
+  background: rgba(10,132,255,0.2);
+  border-color: rgba(10,132,255,0.4);
+  color: #4da6ff;
+}
+.tt-btn--accent:hover { background: rgba(10,132,255,0.3); }
+.tt-btn--accent:disabled { opacity: 0.35; cursor: default; }
+.tt-btn--success {
+  background: rgba(48,209,88,0.2);
+  border-color: rgba(48,209,88,0.4);
+  color: #30D158;
+}
+
+.tt-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 12px;
+  background: rgba(0,0,0,0.15);
+  border: none;
+  outline: none;
+  resize: none;
+  color: rgba(255,255,255,0.88);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.7;
+  caret-color: #0A84FF;
+}
+.tt-textarea::placeholder { color: rgba(255,255,255,0.2); }
+.tt-textarea--output {
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.75);
+}
+
+/* Swap button */
+.tt-swap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  background: rgba(0,0,0,0.1);
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.tt-swap__btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.6);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+.tt-swap__btn:hover {
+  background: rgba(10,132,255,0.2);
+  border-color: rgba(10,132,255,0.4);
+  color: #fff;
+  transform: scale(1.1) rotate(180deg);
+}

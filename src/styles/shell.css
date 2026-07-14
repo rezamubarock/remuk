@@ -1,0 +1,425 @@
+/* ===================================================
+   SHELL — Desktop & Mobile OS Shell Styles
+   =================================================== */
+
+/* ─── Desktop Shell ─── */
+.desktop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Menu Bar ─── */
+.menubar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: var(--z-menubar);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  gap: var(--space-5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: var(--blur-lg);
+  -webkit-backdrop-filter: var(--blur-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.menubar__logo {
+  font-size: 16px;
+  cursor: default;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+.menubar__logo:hover { transform: rotate(15deg) scale(1.15); }
+
+.menubar__app-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.menubar__menus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.menubar__menu-item {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: default;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.menubar__menu-item:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary);
+}
+
+.menubar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.menubar__status-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.menubar__status-icon {
+  font-size: 13px;
+  cursor: default;
+  opacity: 0.85;
+}
+
+.menubar__clock {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* ─── Desktop Workspace ─── */
+.desktop__workspace {
+  position: fixed;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+  overflow: hidden;
+}
+
+/* ─── Dock ─── */
+.dock {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-dock);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
+}
+
+.dock__separator {
+  width: 1px;
+  height: 48px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-1);
+  align-self: center;
+}
+
+/* ─── Dock Icon ─── */
+.dock-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition:
+    transform var(--transition-spring),
+    filter var(--transition-fast);
+  transform-origin: bottom center;
+  position: relative;
+}
+
+.dock-icon:hover { transform: scale(1.35) translateY(-8px); }
+.dock-icon:active { transform: scale(1.2) translateY(-4px); }
+
+.dock-icon--running::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+
+.dock-icon__app {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition-fast);
+}
+
+.dock-icon:hover .dock-icon__app {
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.dock-icon__app-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+}
+
+.dock-icon__emoji {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+}
+
+.dock-icon__label {
+  position: absolute;
+  bottom: 105%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: var(--blur-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  border: 1px solid var(--border-subtle);
+}
+
+.dock-icon:hover .dock-icon__label { opacity: 1; }
+
+/* Dock magnification effect for neighbors — handled via JS */
+.dock-icon--neighbor-1 { transform: scale(1.2) translateY(-4px); }
+.dock-icon--neighbor-2 { transform: scale(1.08) translateY(-2px); }
+
+/* ─── Mobile Shell ─── */
+.mobile {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── Mobile Status Bar ─── */
+.status-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: var(--z-menubar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+}
+
+.status-bar__time {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.status-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar__icon {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* ─── Home Screen ─── */
+.homescreen {
+  position: fixed;
+  top: 44px;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+  overflow: hidden;
+  touch-action: pan-x;
+}
+
+.homescreen__pages {
+  display: flex;
+  height: 100%;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.homescreen__page {
+  flex-shrink: 0;
+  width: 100vw;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(6, auto);
+  gap: 20px;
+  padding: 24px 16px;
+  align-content: start;
+}
+
+/* ─── Mobile App Icon ─── */
+.app-icon-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-icon-mobile:active .app-icon-mobile__app {
+  transform: scale(0.9);
+  filter: brightness(0.9);
+}
+
+.app-icon-mobile__app {
+  width: 60px;
+  height: 60px;
+  border-radius: 15px; /* iOS squircle approximation */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+/* iOS squircle via clip-path */
+.app-icon-mobile__app {
+  border-radius: 16px;
+}
+
+.app-icon-mobile__label {
+  font-size: 11px;
+  color: var(--text-primary);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Page Indicator ─── */
+.page-indicator {
+  position: fixed;
+  bottom: 90px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  z-index: var(--z-dock);
+}
+
+.page-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  transition: all var(--transition-base);
+}
+
+.page-dot--active {
+  background: var(--text-primary);
+  width: 18px;
+  border-radius: 3px;
+}
+
+/* ─── Mobile Dock ─── */
+.mobile-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: var(--z-dock);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px 20px;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: var(--blur-lg);
+  -webkit-backdrop-filter: var(--blur-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.mobile-dock__row {
+  display: flex;
+  gap: 20px;
+}
+
+/* ─── Mobile App Sheet ─── */
+.app-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-window) + 100);
+  display: flex;
+  flex-direction: column;
+  background: rgba(10,10,30,0.95);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+}
+
+.app-sheet__header {
+  display: flex;
+  align-items: center;
+  padding: 50px var(--space-4) var(--space-4);
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-sheet__back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent);
+  font-size: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.app-sheet__back:hover { background: rgba(10,132,255,0.1); }
+
+.app-sheet__title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.app-sheet__body {
+  flex: 1;
+  overflow: auto;
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a2e"/>
+      <stop offset="100%" style="stop-color:#020210"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#fff5c0"/>
+      <stop offset="40%" style="stop-color:#ffd700"/>
+      <stop offset="100%" style="stop-color:#ff8c00"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+  <!-- Sun glow -->
+  <circle cx="256" cy="256" r="80" fill="rgba(255,160,0,0.15)"/>
+  <circle cx="256" cy="256" r="55" fill="rgba(255,200,0,0.25)"/>
+  <!-- Sun -->
+  <circle cx="256" cy="256" r="38" fill="url(#sun)"/>
+  <!-- Orbit rings -->
+  <circle cx="256" cy="256" r="80" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="120" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+  <!-- Mercury -->
+  <circle cx="336" cy="256" r="7" fill="#999"/>
+  <!-- Earth -->
+  <circle cx="256" cy="136" r="10" fill="#1a6bb5"/>
+  <!-- Mars -->
+  <circle cx="86" cy="256" r="8" fill="#c1440e"/>
+  <!-- Stars -->
+  <circle cx="50" cy="60" r="2" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="450" cy="80" r="1.5" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="30" cy="430" r="2" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="480" cy="400" r="1.5" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="100" cy="480" r="1.5" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="410" cy="460" r="2" fill="rgba(255,255,255,0.7)"/>
+</svg>
