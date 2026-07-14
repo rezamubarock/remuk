@@ -55,11 +55,12 @@ remuk/
 │   │   ├── desktop/
 │   │   │   ├── Desktop.jsx            # Assembles: Wallpaper + MenuBar + Dock + WindowLayer
 │   │   │   ├── MenuBar.jsx            # Top bar: clock real-time, nama window aktif
-│   │   │   └── Dock.jsx               # Bottom dock: icons, magnify animation, running indicator
+│   │   │   ├── Dock.jsx               # Bottom dock: icons, magnify animation, running indicator
+│   │   │   └── Launchpad.jsx          # Fullscreen overlay Launchpad (macOS style app drawer)
 │   │   └── mobile/
 │   │       ├── Mobile.jsx             # Assembles: Wallpaper + StatusBar + HomeScreen
 │   │       ├── StatusBar.jsx          # Top bar: clock, wifi, baterai
-│   │       └── HomeScreen.jsx         # Grid icons + swipe + AppSheet slide-up
+│   │       └── HomeScreen.jsx         # Grid icons + swipe + AppSheet slide-up + folder popup
 │   │
 │   ├── components/                    # ← KOMPONEN REUSABLE
 │   │   ├── Window.jsx                 # Window chrome: drag, resize 8 arah, snap, traffic lights
@@ -68,13 +69,16 @@ remuk/
 │   ├── tools/                         # ← SEMUA TOOLS (1 folder = 1 tool)
 │   │   ├── _template/
 │   │   │   └── index.jsx              # Template kosong untuk tool baru
-│   │   └── text-tools/
-│   │       ├── index.jsx              # Komponen: 11 transformasi teks
-│   │       └── text-tools.css         # Scoped CSS untuk tool ini
+│   │   ├── text-tools/
+│   │   │   ├── index.jsx              # Komponen: 11 transformasi teks
+│   │   │   └── text-tools.css         # Scoped CSS untuk tool ini
+│   │   └── settings/
+│   │       ├── index.jsx              # Kustomisasi shortcut (password: 111111Aa)
+│   │       └── settings.css           # Scoped CSS untuk pengaturan
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
-│       ├── shell.css                  # Styles: menubar, dock, homescreen, status bar, lockscreen, dll
+│       ├── shell.css                  # Styles: menubar, dock, homescreen, status bar, lockscreen, launchpad, dll
 │       ├── window.css                 # Styles: window chrome, traffic lights, resize handles
 │       ├── wallpaper.css              # CSS static premium gradient & curves styling
 │       └── animations.css             # Notification styles + @keyframes global
