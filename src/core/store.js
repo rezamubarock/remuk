@@ -37,6 +37,7 @@ export const useStore = create(
       // ─── Customization / Launchpad State ───
       launchpadOpen: false,
       appPlacements: {}, // { [toolId]: { dock: bool, desktop: bool, drawer: bool } }
+      appOrder: [], // list of tool IDs
 
       toggleLaunchpad: () => set((s) => ({ launchpadOpen: !s.launchpadOpen })),
       setLaunchpadOpen: (val) => set({ launchpadOpen: val }),
@@ -54,6 +55,7 @@ export const useStore = create(
       },
 
       setAppPlacements: (placements) => set({ appPlacements: placements }),
+      setAppOrder: (order) => set({ appOrder: order }),
 
       /**
        * Buka tool sebagai window baru
@@ -237,6 +239,7 @@ export const useStore = create(
         })),
         activeWindowId: state.activeWindowId,
         appPlacements: state.appPlacements,
+        appOrder: state.appOrder,
       }),
     }
   )

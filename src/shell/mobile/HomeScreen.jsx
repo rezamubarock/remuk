@@ -73,16 +73,26 @@ const HomeScreen = () => {
   const [showDrawerFolder, setShowDrawerFolder] = useState(false);
   
   const appPlacements = useStore((s) => s.appPlacements);
+  const appOrder = useStore((s) => s.appOrder) || [];
   const touchStartX = useRef(null);
 
-  // Filter tools to only those shown on home screen
-  const desktopTools = TOOLS.filter((tool) => {
+  // 1. Sort the entire TOOLS list according to the current appOrder
+  const sortedTools = [...TOOLS].sort((a, b) => {
+    const idxA = appOrder.indexOf(a.id);
+    const idxB = appOrder.indexOf(b.id);
+    const posA = idxA === -1 ? 999 : idxA;
+    const posB = idxB === -1 ? 999 : idxB;
+    return posA - posB;
+  });
+
+  // 2. Filter tools to only those shown on home screen
+  const desktopTools = sortedTools.filter((tool) => {
     const placement = appPlacements[tool.id] || { desktop: true };
     return placement.desktop !== false;
   });
 
-  // Filter tools shown in drawer/folder
-  const drawerTools = TOOLS.filter((tool) => {
+  // 3. Filter tools shown in drawer/folder
+  const drawerTools = sortedTools.filter((tool) => {
     const placement = appPlacements[tool.id] || { drawer: true };
     return placement.drawer !== false;
   });

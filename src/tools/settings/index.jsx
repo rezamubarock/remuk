@@ -21,7 +21,7 @@ const SettingsTool = () => {
   const [loading, setLoading] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('ready'); // 'ready' | 'syncing' | 'error'
 
-  const { appPlacements, updateAppPlacement } = useStore();
+  const { appPlacements, updateAppPlacement, appOrder, setAppOrder } = useStore();
   const { service: firebaseService } = useService('firebase-firestore');
 
   const handleUnlock = async (e) => {
@@ -51,22 +51,26 @@ const SettingsTool = () => {
   };
 
   const handleToggle = async (toolId, type, currentVal) => {
-    // 1. Calculate updated placements
     const currentPlacements = { ...appPlacements };
     const currentToolPlacement = currentPlacements[toolId] || { dock: true, desktop: true, drawer: true };
     const updatedToolPlacement = { ...currentToolPlacement, [type]: !currentVal };
     const updatedPlacements = { ...currentPlacements, [toolId]: updatedToolPlacement };
 
-    // 2. Update local state
     updateAppPlacement(toolId, { [type]: !currentVal });
 
-    // 3. Write to Firestore to affect layout globally
+    // Save both placements and order
     if (firebaseService?.db) {
       setCloudSyncStatus('syncing');
       try {
         const { doc, setDoc } = await import('firebase/firestore');
         const docRef = doc(firebaseService.db, 'notes', 'settings_placements');
-        await setDoc(docRef, { placements: updatedPlacements });
+        
+        let currentOrder = [...appOrder];
+        if (currentOrder.length === 0) {
+          currentOrder = TOOLS.map((t) => t.id);
+        }
+
+        await setDoc(docRef, { placements: updatedPlacements, order: currentOrder });
         setCloudSyncStatus('ready');
       } catch (err) {
         console.error('Failed to save placements in Firestore:', err);
@@ -74,6 +78,52 @@ const SettingsTool = () => {
       }
     }
   };
+
+  const handleMove = async (toolId, direction) => {
+    let currentOrder = [...appOrder];
+    if (currentOrder.length === 0) {
+      currentOrder = TOOLS.map((t) => t.id);
+    }
+
+    const index = currentOrder.indexOf(toolId);
+    if (index === -1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= currentOrder.length) return;
+
+    // Swap items in order list
+    const temp = currentOrder[index];
+    currentOrder[index] = currentOrder[newIndex];
+    currentOrder[newIndex] = temp;
+
+    setAppOrder(currentOrder);
+
+    // Write to Firestore settings_placements
+    if (firebaseService?.db) {
+      setCloudSyncStatus('syncing');
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const docRef = doc(firebaseService.db, 'notes', 'settings_placements');
+        
+        const currentPlacements = { ...appPlacements };
+
+        await setDoc(docRef, { placements: currentPlacements, order: currentOrder });
+        setCloudSyncStatus('ready');
+      } catch (err) {
+        console.error('Failed to save placements & order in Firestore:', err);
+        setCloudSyncStatus('error');
+      }
+    }
+  };
+
+  // Sort tools list in UI based on current order list
+  const sortedTools = [...TOOLS].sort((a, b) => {
+    const idxA = appOrder.indexOf(a.id);
+    const idxB = appOrder.indexOf(b.id);
+    const posA = idxA === -1 ? 999 : idxA;
+    const posB = idxB === -1 ? 999 : idxB;
+    return posA - posB;
+  });
 
   if (!unlocked) {
     return (
@@ -123,20 +173,42 @@ const SettingsTool = () => {
         <table className="st-table">
           <thead>
             <tr>
-              <th>Aplikasi</th>
+              <th>Aplikasi & Urutan</th>
               <th>Dock</th>
               <th>Desktop/Layar Utama</th>
               <th>Laci/Launchpad</th>
             </tr>
           </thead>
           <tbody>
-            {TOOLS.map((tool) => {
+            {sortedTools.map((tool, idx) => {
               const placement = getPlacement(tool.id);
               return (
                 <tr key={tool.id}>
-                  <td className="st-table__app-info">
-                    <span className="st-table__icon">{tool.icon}</span>
-                    <span className="st-table__name">{tool.name}</span>
+                  <td className="st-table__app-info-col">
+                    {/* Sort buttons */}
+                    <div className="st-sort-btns">
+                      <button 
+                        onClick={() => handleMove(tool.id, 'up')}
+                        disabled={idx === 0}
+                        className="st-sort-btn"
+                        title="Geser Ke Atas"
+                      >
+                        ▲
+                      </button>
+                      <button 
+                        onClick={() => handleMove(tool.id, 'down')}
+                        disabled={idx === sortedTools.length - 1}
+                        className="st-sort-btn"
+                        title="Geser Ke Bawah"
+                      >
+                        ▼
+                      </button>
+                    </div>
+
+                    <div className="st-table__app-info">
+                      <span className="st-table__icon">{tool.icon}</span>
+                      <span className="st-table__name">{tool.name}</span>
+                    </div>
                   </td>
                   <td>
                     <label className="st-switch">

@@ -8,6 +8,7 @@ import { getToolById } from './core/registry';
 const App = () => {
   const openApp = useStore((s) => s.openApp);
   const setAppPlacements = useStore((s) => s.setAppPlacements);
+  const setAppOrder = useStore((s) => s.setAppOrder);
   const [isLocked, setIsLocked] = useState(true);
 
   // ─── Cloud settings listener ───
@@ -29,6 +30,9 @@ const App = () => {
               if (data.placements) {
                 setAppPlacements(data.placements);
               }
+              if (data.order) {
+                setAppOrder(data.order);
+              }
             }
           });
         } catch (err) {
@@ -40,7 +44,7 @@ const App = () => {
         if (unsub) unsub();
       };
     }
-  }, [isFirebaseReady, firebaseService, setAppPlacements]);
+  }, [isFirebaseReady, firebaseService, setAppPlacements, setAppOrder]);
 
   // Handle URL shortcut: ?open=tool-id
   useEffect(() => {

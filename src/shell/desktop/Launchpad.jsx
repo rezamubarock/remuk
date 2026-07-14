@@ -27,8 +27,18 @@ const Launchpad = () => {
 
   if (!launchpadOpen) return null;
 
+  const appOrder = useStore((s) => s.appOrder) || [];
+
   // Filter tools: must be in drawer/launchpad AND match search filter
-  const drawerApps = TOOLS.filter((tool) => {
+  const sortedTools = [...TOOLS].sort((a, b) => {
+    const idxA = appOrder.indexOf(a.id);
+    const idxB = appOrder.indexOf(b.id);
+    const posA = idxA === -1 ? 999 : idxA;
+    const posB = idxB === -1 ? 999 : idxB;
+    return posA - posB;
+  });
+
+  const drawerApps = sortedTools.filter((tool) => {
     const placement = appPlacements[tool.id] || { drawer: true };
     const matchesDrawer = placement.drawer !== false;
     const matchesSearch = tool.name.toLowerCase().includes(search.toLowerCase());
