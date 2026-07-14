@@ -15,7 +15,7 @@ const sha256 = async (string) => {
 
 const Notepad = () => {
   // ─── Firebase hook ───
-  const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');
+  const { isReady: isFirebaseReady, service: firebaseService, error: firebaseError } = useService('firebase-firestore');
 
   // ─── Component states ───
   const [syncKey, setSyncKey] = useState(() => localStorage.getItem('remuk_notepad_key') || '');
@@ -36,6 +36,8 @@ const Notepad = () => {
   const unsubscribeRef = useRef(null);
   const debounceTimerRef = useRef(null);
   const notesStateRef = useRef([]);
+  const lineNumbersRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Sync references reference state
   useEffect(() => {
@@ -66,7 +68,10 @@ const Notepad = () => {
 
   // ─── Firestore listener setup ───
   const connectToKey = useCallback(async (key) => {
-    if (!firebaseService?.db) return;
+    if (!firebaseService?.db) {
+      alert("Firebase belum terinisialisasi. Pastikan kamu sudah merestart server Vite setelah membuat file .env.local agar kredensial baru terbaca!");
+      return;
+    }
     setSyncStatus('saving');
 
     try {
@@ -97,7 +102,6 @@ const Notepad = () => {
 
           // Update active note id if needed
           if (remoteNotes.length > 0) {
-            // Keep active if it exists, otherwise pick first
             setActiveNoteId((prevId) => 
               remoteNotes.some((n) => n.id === prevId) ? prevId : remoteNotes[0].id
             );
@@ -118,7 +122,6 @@ const Notepad = () => {
 
   // ─── Auto connect on mount ───
   useEffect(() => {
-    // Check URL parameters for ?sync=xxxx
     const params = new URLSearchParams(window.location.search);
     const syncParam = params.get('sync');
     const targetKey = syncParam || syncKey;
@@ -126,7 +129,6 @@ const Notepad = () => {
     if (targetKey && isFirebaseReady && firebaseService?.db) {
       connectToKey(targetKey);
       if (syncParam) {
-        // Clean URL parameter
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
@@ -149,18 +151,15 @@ const Notepad = () => {
     try {
       const hashed = await sha256(creationPassword);
       if (hashed === CREATION_HASH_TARGET) {
-        // Correct password: create document
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = doc(firebaseService.db, 'notes', pendingKey);
         
-        // Initial doc setup
         const initialNotes = notesStateRef.current.length > 0 
           ? notesStateRef.current 
           : [{ id: `note-${Date.now()}`, title: 'Catatan Baru', content: '', updatedAt: Date.now() }];
 
         await setDoc(docRef, { notes: initialNotes });
 
-        // Hide prompt and connect
         setShowPasswordPrompt(false);
         setCreationPassword('');
         connectToKey(pendingKey);
@@ -191,9 +190,8 @@ const Notepad = () => {
           console.error('Failed to autosave to Firestore:', e);
           setSyncStatus('error');
         }
-      }, 3000); // 3 seconds debounce to save writes
+      }, 3000); 
     } else {
-      // Local save
       localStorage.setItem('remuk_notepad_local_notes', JSON.stringify(updatedNotes));
       setSyncStatus('local');
     }
@@ -234,7 +232,7 @@ const Notepad = () => {
       }
       return n;
     });
-    // Reorder: active note to the top of list
+
     const activeIdx = updated.findIndex((n) => n.id === activeNoteId);
     if (activeIdx > 0) {
       const activeObj = updated[activeIdx];
@@ -250,7 +248,6 @@ const Notepad = () => {
     setSyncKey('');
     localStorage.removeItem('remuk_notepad_key');
     setSyncStatus('local');
-    // Load back local notes
     const local = localStorage.getItem('remuk_notepad_local_notes');
     if (local) {
       setNotes(JSON.parse(local));
@@ -263,6 +260,17 @@ const Notepad = () => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId);
 
+  // Scroll synchronization between line numbers gutter and textarea
+  const handleScroll = (e) => {
+    if (lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  // Generate line numbers matching textarea line counts
+  const lines = activeNote?.content ? activeNote.content.split('\n') : [''];
+  const lineNumbers = Array.from({ length: Math.max(lines.length, 1) }, (_, i) => i + 1);
+
   return (
     <div className="np">
       {/* Settings / Sync Panel Overlay */}
@@ -271,6 +279,12 @@ const Notepad = () => {
           <div className="np-settings-card glass">
             <h3>Pengaturan Sinkronisasi</h3>
             
+            {firebaseError && (
+              <div className="np-error-box">
+                <strong>Error Firebase:</strong> {firebaseError.message || "Gagal memuat provider database. Restart dev server."}
+              </div>
+            )}
+
             {isConnected ? (
               <div className="np-settings-connected">
                 <p>Terkoneksi dengan Sync Key:</p>
@@ -365,7 +379,7 @@ const Notepad = () => {
                 </button>
               </div>
               <p className="np-note-item__snippet">
-                {n.content ? n.content.slice(0, 45) + (n.content.length > 45 ? '...' : '') : 'Tidak ada konten tambahan'}
+                {n.content ? n.content.slice(0, 30) + (n.content.length > 30 ? '...' : '') : 'Tidak ada konten'}
               </p>
               <span className="np-note-item__date">
                 {new Date(n.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
@@ -381,24 +395,54 @@ const Notepad = () => {
         </div>
       </div>
 
-      {/* Editor Panel */}
-      <div className="np-editor">
+      {/* Editor Panel (Notepad++ styled editor layout) */}
+      <div className="np-editor np-editor--npp">
         {activeNote ? (
           <>
-            <input
-              type="text"
-              value={activeNote.title === 'Tanpa Judul' ? '' : activeNote.title}
-              onChange={(e) => handleUpdateActiveNote('title', e.target.value)}
-              placeholder="Judul Catatan"
-              className="np-editor__title"
-            />
-            <textarea
-              value={activeNote.content}
-              onChange={(e) => handleUpdateActiveNote('content', e.target.value)}
-              placeholder="Mulai mengetik catatan kamu di sini..."
-              className="np-editor__content"
-              spellCheck={false}
-            />
+            {/* Notepad++ Document Tab bar */}
+            <div className="npp-tabs">
+              <div className="npp-tab npp-tab--active">
+                <span className="npp-tab__icon">📝</span>
+                <input
+                  type="text"
+                  value={activeNote.title === 'Tanpa Judul' ? '' : activeNote.title}
+                  onChange={(e) => handleUpdateActiveNote('title', e.target.value)}
+                  placeholder="new 1"
+                  className="npp-tab__input"
+                />
+              </div>
+            </div>
+
+            {/* Notepad++ Text Editor Gutter and Area Container */}
+            <div className="npp-container">
+              {/* Line Numbers Gutter */}
+              <div ref={lineNumbersRef} className="npp-gutter">
+                {lineNumbers.map((num) => (
+                  <div key={num} className="npp-line-num">
+                    {num}
+                  </div>
+                ))}
+              </div>
+
+              {/* Textarea Code area */}
+              <textarea
+                ref={textareaRef}
+                value={activeNote.content}
+                onChange={(e) => handleUpdateActiveNote('content', e.target.value)}
+                onScroll={handleScroll}
+                placeholder="Mulai menulis..."
+                className="npp-textarea"
+                spellCheck={false}
+              />
+            </div>
+
+            {/* Notepad++ status bar at bottom */}
+            <div className="npp-statusbar">
+              <span>Length: {activeNote.content.length} | Lines: {lines.length}</span>
+              <span>Ln: {lines.length} | Col: {activeNote.content.length + 1}</span>
+              <span>UTF-8</span>
+              <span>Windows (CRLF)</span>
+            </div>
           </>
         ) : (
           <div className="np-editor-empty">
