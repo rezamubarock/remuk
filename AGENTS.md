@@ -355,8 +355,9 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 | Tool | Status | Services |
 |---|---|---|
 | Alat Teks | ✅ Done | — |
+| Notepad Seamless | ✅ Done | firebase-firestore |
+| Pengaturan Layout | ✅ Done | firebase-firestore |
 | Email Sementara | 🔜 Planned | cloudflare-worker |
-| Notepad Seamless | 🔜 Planned | firebase-firestore |
 | Kalkulator | 🔜 Planned | — |
 | Pemilih Warna | 🔜 Planned | — |
 | Konverter Unit | 🔜 Planned | — |
@@ -372,3 +373,6 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 3. **React.lazy** butuh dynamic import dengan path literal — jangan variable path
 4. **CSS z-index layers** sudah terdefinisi di variables — jangan pakai angka hardcode
 5. **`singleton: true`** di registry mencegah tool dibuka lebih dari sekali — berguna untuk tool yang punya state global (misal: Notepad dengan sync)
+6. **Sesi Kunci Sandi**: Unlocked status disimpan di `sessionStorage` (`remuk_lockscreen_unlocked`, `remuk_settings_unlocked`) untuk menghindari re-input password saat halaman direfresh.
+7. **Penyimpanan Layout Firestore**: Data kustomisasi placements, order, dan folders disimpan di Firestore `/notes/settings_placements` sehingga tersinkronisasi global ke seluruh user.
+
