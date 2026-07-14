@@ -206,3 +206,76 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ─── Folder Window Grid (Desktop) ─── */
+.folder-window-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 20px;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.folder-window-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  width: 80px;
+}
+
+.folder-window-app__icon {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: transform var(--transition-fast);
+}
+
+.folder-window-app:hover .folder-window-app__icon {
+  transform: scale(1.08);
+}
+
+.folder-window-app__icon span {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.folder-window-app__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-window-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-tertiary);
+  padding: 40px 0;
+}
+
+.folder-window-empty span {
+  font-size: 36px;
+}
+
+.folder-window-empty p {
+  font-size: 12px;
+  margin-top: 8px;
+}

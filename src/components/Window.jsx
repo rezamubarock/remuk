@@ -2,6 +2,7 @@ import React, { Suspense, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWindowManager } from '@core/hooks/useWindowManager';
 import { getToolById } from '@core/registry';
+import { useStore } from '@core/store';
 
 const WINDOW_VARIANTS = {
   initial: { opacity: 0, scale: 0.88, y: 20 },
@@ -212,7 +213,47 @@ const Window = ({ win }) => {
             </div>
           }
         >
-          {ToolComponent ? <ToolComponent windowId={win.id} /> : (
+          {win.toolId.startsWith('folder-') ? (
+            <div className="folder-window-grid">
+              {(() => {
+                const folders = useStore.getState().folders || [];
+                const folder = folders.find((f) => f.id === win.toolId);
+                if (!folder || !folder.apps || folder.apps.length === 0) {
+                  return (
+                    <div className="folder-window-empty">
+                      <span>📂</span>
+                      <p>Folder Kosong</p>
+                    </div>
+                  );
+                }
+                return folder.apps.map((appId) => {
+                  const t = getToolById(appId);
+                  if (!t) return null;
+                  return (
+                    <div
+                      key={t.id}
+                      className="folder-window-app"
+                      onClick={() => openTool(t.id)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div
+                        className="folder-window-app__icon"
+                        style={{
+                          background: `linear-gradient(145deg, ${t.color || '#0A84FF'}, ${t.colorAlt || '#5E5CE6'})`,
+                        }}
+                      >
+                        <span>{t.icon}</span>
+                      </div>
+                      <span className="folder-window-app__label">{t.name}</span>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          ) : ToolComponent ? (
+            <ToolComponent windowId={win.id} />
+          ) : (
             <div className="window-loader">
               <span style={{ fontSize: 32 }}>❓</span>
               <span className="window-loader__text">Tool tidak ditemukan</span>

@@ -57,6 +57,42 @@ export const useStore = create(
       setAppPlacements: (placements) => set({ appPlacements: placements }),
       setAppOrder: (order) => set({ appOrder: order }),
 
+      // ─── Folders State ───
+      folders: [], // Array: { id, name, icon, apps: [appId], placements: { dock, desktop, drawer } }
+      setFolders: (folders) => set({ folders }),
+      
+      createFolder: (name, icon) => {
+        const newFolder = {
+          id: `folder-${Date.now()}`,
+          name: name || 'Folder Baru',
+          icon: icon || '📁',
+          apps: [],
+          placements: { dock: true, desktop: true, drawer: true },
+        };
+        set((s) => ({ folders: [...s.folders, newFolder] }));
+        return newFolder;
+      },
+
+      deleteFolder: (folderId) => {
+        set((s) => ({ folders: s.folders.filter((f) => f.id !== folderId) }));
+      },
+
+      updateFolderPlacements: (folderId, placements) => {
+        set((s) => ({
+          folders: s.folders.map((f) =>
+            f.id === folderId ? { ...f, placements: { ...f.placements, ...placements } } : f
+          ),
+        }));
+      },
+
+      updateFolderApps: (folderId, appIds) => {
+        set((s) => ({
+          folders: s.folders.map((f) =>
+            f.id === folderId ? { ...f, apps: appIds } : f
+          ),
+        }));
+      },
+
       /**
        * Buka tool sebagai window baru
        * @param {object} tool - dari registry TOOLS
@@ -240,6 +276,7 @@ export const useStore = create(
         activeWindowId: state.activeWindowId,
         appPlacements: state.appPlacements,
         appOrder: state.appOrder,
+        folders: state.folders,
       }),
     }
   )

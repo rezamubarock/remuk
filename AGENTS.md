@@ -141,6 +141,9 @@ Menyimpan state semua windows. Persist ke localStorage.
   activeWindowId,    // ID window yang sedang di-fokus
   snapIndicator,     // 'left' | 'right' | null
   notifications: [], // array toast
+  appPlacements: {}, // letak kustomisasi icon
+  appOrder: [],      // urutan custom aplikasi
+  folders: [],       // array folder kustom: { id, name, icon, apps, placements }
 }
 ```
 

@@ -37,6 +37,38 @@
   margin-top: 4px;
 }
 
+/* Tab buttons settings */
+.st-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.st-tab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.st-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.st-tab-btn--active {
+  background: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
+}
+
 .st-cloud-status {
   font-size: 11px;
 }
@@ -277,4 +309,177 @@ input:checked + .st-slider:before {
 .st-lock__btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* ─── Folders Manager Layout ─── */
+.st-folders-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.st-create-folder-form {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+}
+
+.st-create-folder-form h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.st-create-folder-form__row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.st-create-folder-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+.st-create-folder-input:focus {
+  border-color: var(--color-accent);
+}
+
+.st-create-folder-input--icon {
+  width: 50px;
+  text-align: center;
+}
+
+.st-create-folder-btn {
+  width: 90px;
+}
+
+/* Folders List inside settings */
+.st-folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.st-folder-item {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.st-folder-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.st-folder-item__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.st-folder-item__icon {
+  font-size: 22px;
+}
+
+.st-folder-item__title h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.st-folder-delete-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 69, 58, 0.4);
+  color: #ff453a;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.st-folder-delete-btn:hover {
+  background: rgba(255, 69, 58, 0.1);
+}
+
+/* Folder Placements settings */
+.st-folder-placements {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12px;
+  background: rgba(0,0,0,0.15);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+}
+
+.st-folder-placement-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.st-folder-placement-toggle input {
+  cursor: pointer;
+}
+
+/* Folder apps grid checkbox selector */
+.st-folder-apps h5 {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.st-folder-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.st-folder-app-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all var(--transition-fast);
+}
+
+.st-folder-app-checkbox input {
+  cursor: pointer;
+}
+
+.st-folder-app-checkbox--active {
+  border-color: rgba(255, 214, 10, 0.3);
+  background: rgba(255, 214, 10, 0.08);
+  color: #ffd60a;
+}
+
+.st-folders-empty {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-tertiary);
+}
+
+.st-folders-empty span {
+  font-size: 32px;
+}
+
+.st-folders-empty p {
+  font-size: 12px;
+  margin-top: 8px;
 }

@@ -9,6 +9,7 @@ const App = () => {
   const openApp = useStore((s) => s.openApp);
   const setAppPlacements = useStore((s) => s.setAppPlacements);
   const setAppOrder = useStore((s) => s.setAppOrder);
+  const setFolders = useStore((s) => s.setFolders);
   const [isLocked, setIsLocked] = useState(true);
 
   // ─── Cloud settings listener ───
@@ -18,7 +19,7 @@ const App = () => {
     if (isFirebaseReady && firebaseService?.db) {
       let unsub = null;
       
-      // Load real-time placements globally
+      // Load real-time settings (placements, order, folders) globally
       (async () => {
         try {
           const { doc, onSnapshot } = await import('firebase/firestore');
@@ -33,6 +34,9 @@ const App = () => {
               if (data.order) {
                 setAppOrder(data.order);
               }
+              if (data.folders) {
+                setFolders(data.folders);
+              }
             }
           });
         } catch (err) {
@@ -44,7 +48,7 @@ const App = () => {
         if (unsub) unsub();
       };
     }
-  }, [isFirebaseReady, firebaseService, setAppPlacements, setAppOrder]);
+  }, [isFirebaseReady, firebaseService, setAppPlacements, setAppOrder, setFolders]);
 
   // Handle URL shortcut: ?open=tool-id
   useEffect(() => {
