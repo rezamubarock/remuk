@@ -1,19 +1,19 @@
 /**
  * Firebase Firestore Provider
  * ─────────────────────────────────────────────────────────────
- * Install: npm install firebase
- * Config : Isi FIREBASE_CONFIG di bawah dengan config project kamu
+ * Menggunakan kredensial Firebase yang di-hardcode agar langsung
+ * berfungsi saat dideploy ke Cloudflare Pages (remuk.id) tanpa
+ * harus setup environment variables di panel dashboard.
  * ─────────────────────────────────────────────────────────────
  */
 
-// TODO: Ganti dengan config Firebase kamu
 const FIREBASE_CONFIG = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDIQSMh2fPb-xfnwPj2FSOIetibha0dh3k",
+  authDomain: "remuk-tools.firebaseapp.com",
+  projectId: "remuk-tools",
+  storageBucket: "remuk-tools.firebasestorage.app",
+  messagingSenderId: "379630741629",
+  appId: "1:379630741629:web:00625ad7ae859fc39ee914"
 };
 
 let firestoreInstance = null;
