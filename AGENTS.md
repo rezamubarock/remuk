@@ -51,15 +51,13 @@ remuk/
 │   ├── shell/                         # ← TAMPILAN OS
 │   │   ├── DeviceShell.jsx            # Switch desktop/mobile berdasarkan viewport
 │   │   ├── Lockscreen.jsx             # Secure lock screen (password: annelies, SHA-256 target check)
-│   │   ├── Wallpaper.jsx              # Randomized static premium mesh gradients + curves
+│   │   ├── Wallpaper.jsx              # Randomized static premium mesh gradients + curves + Device Fingerprints
 │   │   ├── desktop/
-│   │   │   ├── Desktop.jsx            # Assembles: Wallpaper + MenuBar + Dock + WindowLayer
-│   │   │   ├── MenuBar.jsx            # Top bar: clock real-time, nama window aktif
+│   │   │   ├── Desktop.jsx            # Assembles: Wallpaper + Dock + WindowLayer
 │   │   │   ├── Dock.jsx               # Bottom dock: icons, magnify animation, running indicator
 │   │   │   └── Launchpad.jsx          # Fullscreen overlay Launchpad (macOS style app drawer)
 │   │   └── mobile/
-│   │       ├── Mobile.jsx             # Assembles: Wallpaper + StatusBar + HomeScreen
-│   │       ├── StatusBar.jsx          # Top bar: clock, wifi, baterai
+│   │       ├── Mobile.jsx             # Assembles: Wallpaper + HomeScreen
 │   │       └── HomeScreen.jsx         # Grid icons + swipe + AppSheet slide-up + folder popup
 │   │
 │   ├── components/                    # ← KOMPONEN REUSABLE
