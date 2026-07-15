@@ -12,7 +12,7 @@ const sha256 = async (string) => {
   return hashHex;
 };
 
-const Lockscreen = ({ onUnlock }) => {
+const Lockscreen = ({ onUnlock, firebaseService }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,31 @@ const Lockscreen = ({ onUnlock }) => {
       const inputHash = await sha256(password);
       if (inputHash === HASH_TARGET) {
         sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
+        
+        // Save network IP hash to Firestore to bypass on future entries
+        if (firebaseService?.db) {
+          try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            if (data.ip) {
+              const utf8 = new TextEncoder().encode(data.ip);
+              const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+              const hashArray = Array.from(new Uint8Array(hashBuffer));
+              const ipHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+              const { doc, setDoc } = await import('firebase/firestore');
+              const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_ips');
+              await setDoc(docRef, {
+                unlockedHashes: {
+                  [ipHash]: true
+                }
+              }, { merge: true });
+            }
+          } catch (netErr) {
+            console.error('Failed to log network IP for auto-unlock:', netErr);
+          }
+        }
+        
         onUnlock();
       } else {
         setError(true);

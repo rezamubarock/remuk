@@ -76,7 +76,9 @@
 /* ─── Wallpaper Centered Content ─── */
 .wallpaper-info {
   position: absolute;
-  inset: 0;
+  bottom: 130px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,20 +87,22 @@
   z-index: 1;
   padding: 24px;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .wallpaper-sugeh {
   font-family: var(--font-sans);
-  font-size: 3.5rem;
+  font-size: 2.2rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin: 0 0 24px 0;
+  letter-spacing: 0.12em;
+  margin: 0;
   background: linear-gradient(135deg, #FFD60A, #FF9F0A, #FF453A);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 4px 20px rgba(255, 159, 10, 0.2);
+  text-shadow: 0 4px 20px rgba(255, 159, 10, 0.15);
   text-align: center;
+  opacity: 0.85;
   animation: sugehPulse 3s ease-in-out infinite alternate;
 }
 
@@ -192,9 +196,11 @@
 }
 
 @media (max-width: 768px) {
+  .wallpaper-info {
+    bottom: 90px;
+  }
   .wallpaper-sugeh {
-    font-size: 2.2rem;
-    margin-bottom: 16px;
+    font-size: 1.4rem;
   }
   .wallpaper-diag {
     max-width: 100%;

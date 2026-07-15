@@ -530,11 +530,17 @@
   width: 100%;
   background: transparent;
   border: none;
-  outline: none;
+  outline: none !important;
   padding: 8px 36px 8px 16px;
   color: var(--text-primary);
   font-size: 14px;
   text-align: center;
+}
+
+.lockscreen__input:focus,
+.lockscreen__input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .lockscreen__input::placeholder {
