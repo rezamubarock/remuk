@@ -79,6 +79,9 @@ remuk/
 │   │   └── azera-drop/
 │   │       ├── index.jsx              # Klon AirDrop: peer-to-peer file sharing lokal
 │   │       └── azera-drop.css         # Scoped CSS untuk AirDrop radar & dialog
+│   │   └── redraw/
+│   │       ├── index.jsx              # Kanvas coretan kolaboratif real-time lokal
+│   │       └── redraw.css             # Scoped CSS untuk kanvas coretan
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
@@ -363,6 +366,7 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 | Pengaturan Layout | ✅ Done | firebase-firestore |
 | Sistem & Sensor | ✅ Done | — |
 | AzeraDrop | ✅ Done | firebase-firestore |
+| ReDraw | ✅ Done | firebase-firestore |
 | Email Sementara | 🔜 Planned | cloudflare-worker |
 | Kalkulator | 🔜 Planned | — |
 | Pemilih Warna | 🔜 Planned | — |
