@@ -123,6 +123,21 @@ export const TOOLS = [
     singleton: true,
     services: [],
   },
+  {
+    id: 'azera-drop',
+    name: 'AzeraDrop',
+    icon: '📡',
+    description: 'Berbagi berkas secara instan dan aman dengan sesama pengguna di Wi-Fi yang sama',
+    category: 'produktivitas',
+    color: '#0A84FF',
+    colorAlt: '#30B0FF',
+    component: lazy(() => import('../tools/azera-drop')),
+    defaultSize: { width: 700, height: 480 },
+    minSize: { width: 500, height: 420 },
+    resizable: true,
+    singleton: true,
+    services: ['firebase-firestore'],
+  },
 ];
 
 /**

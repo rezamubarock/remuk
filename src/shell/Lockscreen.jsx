@@ -108,8 +108,6 @@ const Lockscreen = ({ onUnlock }) => {
               </button>
             </div>
           </form>
-
-          <p className="lockscreen__hint">Petunjuk: Nama gadis fiksi novel Bumi Manusia</p>
         </div>
       </div>
     </div>
