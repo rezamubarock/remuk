@@ -138,6 +138,21 @@ export const TOOLS = [
     singleton: true,
     services: ['firebase-firestore'],
   },
+  {
+    id: 'redraw',
+    name: 'ReDraw',
+    icon: '🎨',
+    description: 'Kanvas coretan kolaboratif real-time yang tersinkronisasi di jaringan yang sama',
+    category: 'desain',
+    color: '#BF5AF2',
+    colorAlt: '#FF375F',
+    component: lazy(() => import('../tools/redraw')),
+    defaultSize: { width: 760, height: 520 },
+    minSize: { width: 480, height: 400 },
+    resizable: true,
+    singleton: true,
+    services: ['firebase-firestore'],
+  },
 ];
 
 /**

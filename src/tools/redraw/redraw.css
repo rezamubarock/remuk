@@ -1,0 +1,246 @@
+/* ===================================================
+   REDRAW — REAL-TIME COLLABORATIVE CANVAS CSS
+   =================================================== */
+
+.redraw {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0c0c14;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Upper Toolbar controls */
+.redraw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(20, 20, 30, 0.6);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(10px);
+  gap: 12px;
+  flex-wrap: wrap;
+  z-index: 10;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.redraw-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tool-btn--active {
+  background: rgba(10, 132, 255, 0.15) !important;
+  border-color: var(--color-accent) !important;
+  color: #fff !important;
+}
+
+/* Size Slider */
+.scale-slider {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.slider-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.brush-slider {
+  -webkit-appearance: none;
+  width: 90px;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  outline: none;
+}
+
+.brush-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
+/* Action button configurations */
+.action-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.action-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.action-btn--danger {
+  color: var(--color-danger);
+}
+.action-btn--danger:hover:not(:disabled) {
+  background: rgba(255, 69, 58, 0.12);
+  border-color: rgba(255, 69, 58, 0.3);
+}
+
+.action-btn--accent {
+  background: rgba(10, 132, 255, 0.12);
+  border-color: rgba(10, 132, 255, 0.3);
+  color: var(--color-accent);
+}
+.action-btn--accent:hover {
+  background: rgba(10, 132, 255, 0.2);
+}
+
+/* Room details box */
+.redraw-toolbar__room {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.room-indicator {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0,0,0,0.3);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.room-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.room-btn:hover {
+  text-decoration: underline;
+}
+
+/* Palette Dot selector sits under the toolbar */
+.redraw-palette {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(12, 12, 20, 0.9);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  z-index: 9;
+  flex-shrink: 0;
+}
+
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  transition: all var(--transition-fast);
+}
+
+.color-dot:hover {
+  transform: scale(1.2);
+}
+
+.color-dot--active {
+  border-color: #fff !important;
+  transform: scale(1.25);
+  box-shadow: 0 0 10px rgba(255,255,255,0.4);
+}
+
+/* Canvas drawing container */
+.redraw-canvas-container {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.redraw-canvas {
+  display: block;
+  cursor: crosshair;
+  background: transparent;
+}
+
+/* Responsive Gutter */
+@media (max-width: 768px) {
+  .redraw-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  
+  .redraw-toolbar__group {
+    gap: 4px;
+  }
+  
+  .tool-btn, .action-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  
+  .scale-slider {
+    display: none; /* Hide slider on mobile to save toolbar space */
+  }
+  
+  .redraw-toolbar__room {
+    width: 100%;
+    margin-top: 4px;
+    justify-content: space-between;
+  }
+
+  .color-dot {
+    width: 16px;
+    height: 16px;
+  }
+}
