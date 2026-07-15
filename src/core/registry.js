@@ -108,6 +108,21 @@ export const TOOLS = [
     singleton: true,
     services: [],
   },
+  {
+    id: 'system-info',
+    name: 'Sistem & Sensor',
+    icon: '🖥️',
+    description: 'Spesifikasi hardware, Geo-IP, GPU, dan Task Manager monitor',
+    category: 'sistem',
+    color: '#30D158',
+    colorAlt: '#34C759',
+    component: lazy(() => import('../tools/system-info')),
+    defaultSize: { width: 780, height: 500 },
+    minSize: { width: 480, height: 380 },
+    resizable: true,
+    singleton: true,
+    services: [],
+  },
 ];
 
 /**

@@ -422,6 +422,19 @@ const Notepad = () => {
                   className="npp-tab__input"
                 />
               </div>
+              
+              {/* Quick actions for mobile */}
+              <div className="npp-quick-actions">
+                <button className="npp-quick-btn" onClick={handleAddNote} title="Buat Catatan Baru">
+                  ➕
+                </button>
+                <button className="npp-quick-btn" onClick={() => setShowSettings(true)} title="Sinkronisasi Cloud">
+                  {syncStatus === 'local' && '☁️'}
+                  {syncStatus === 'synced' && '🟢'}
+                  {syncStatus === 'saving' && '🔄'}
+                  {syncStatus === 'error' && '🔴'}
+                </button>
+              </div>
             </div>
 
             {/* Notepad++ Text Editor Gutter and Area Container */}
@@ -459,6 +472,15 @@ const Notepad = () => {
           <div className="np-editor-empty">
             <span>📝</span>
             <p>Pilih catatan di panel samping atau buat catatan baru</p>
+            
+            <div className="np-empty-actions">
+              <button className="np-btn np-btn--accent" onClick={handleAddNote}>
+                + Catatan Baru
+              </button>
+              <button className="np-btn np-btn--ghost" onClick={() => setShowSettings(true)}>
+                ⚙️ Pengaturan Sync
+              </button>
+            </div>
           </div>
         )}
       </div>

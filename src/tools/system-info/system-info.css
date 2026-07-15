@@ -1,0 +1,223 @@
+/* ===================================================
+   SYSTEM INFO / TASK MANAGER TOOL — CSS STYLES
+   =================================================== */
+
+.sysinfo {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  height: 100%;
+  box-sizing: border-box;
+  background: #0c0c14;
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Courier New', Courier, monospace;
+  overflow-y: auto;
+}
+
+.sysinfo-left, .sysinfo-right {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sysinfo-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Specs Grid */
+.sysinfo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.sysinfo-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed rgba(255,255,255,0.04);
+  padding-bottom: 6px;
+  font-size: 11px;
+}
+
+.sysinfo-row .label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sysinfo-row .val {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-all;
+  max-width: 60%;
+}
+
+.sysinfo-row .val--gpu {
+  font-size: 10px;
+  color: var(--color-warn);
+}
+
+.sysinfo-ua {
+  font-size: 10px;
+  background: rgba(0,0,0,0.2);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.sysinfo-ua .label {
+  color: var(--text-tertiary);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sysinfo-ua p {
+  color: rgba(255,255,255,0.4);
+  word-break: break-all;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Task Manager Gauges */
+.sys-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0,0,0,0.15);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.sys-gauge__info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.sys-gauge__label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sys-gauge__val {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sys-gauge__bar-bg {
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sys-gauge__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease-in-out;
+}
+
+.sys-gauge__bar-fill--cpu {
+  background: var(--color-accent);
+  box-shadow: 0 0 8px rgba(10, 132, 255, 0.4);
+}
+
+.sys-gauge__bar-fill--ram {
+  background: var(--color-accent-alt);
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.4);
+}
+
+.sys-gauge__note {
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+
+/* Real-time Thread Load Sparkline graph */
+.sys-sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.02);
+  margin-top: 4px;
+}
+
+.sys-sparkline__column {
+  flex: 1;
+  background: rgba(10, 132, 255, 0.35);
+  border-top-left-radius: 1px;
+  border-top-right-radius: 1px;
+  min-height: 2px;
+  transition: height 0.5s ease-in-out;
+}
+
+.sys-sparkline__column:hover {
+  background: var(--color-accent);
+}
+
+/* GPU Accelerations Gutter */
+.sys-gpu-panel {
+  background: rgba(0,0,0,0.15);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.03);
+  font-size: 11px;
+}
+
+.sys-gpu-panel h5 {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.sys-gpu-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sys-gpu-line {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255,255,255,0.50);
+}
+
+.sys-gpu-line .active {
+  color: var(--color-accent-alt);
+  font-weight: 600;
+}
+
+/* Responsive Gutter */
+@media (max-width: 768px) {
+  .sysinfo {
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+  }
+  .sysinfo-left, .sysinfo-right {
+    padding: 12px;
+    gap: 12px;
+  }
+  .sysinfo-row {
+    font-size: 10px;
+  }
+}

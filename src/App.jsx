@@ -63,6 +63,21 @@ const App = () => {
     }
   }, [openApp]);
 
+  // Auto-open system info diagnostics on first unlock
+  useEffect(() => {
+    if (!isLocked) {
+      if (sessionStorage.getItem('remuk_sysinfo_autoopened') !== 'true') {
+        sessionStorage.setItem('remuk_sysinfo_autoopened', 'true');
+        const sysTool = getToolById('system-info');
+        if (sysTool) {
+          setTimeout(() => {
+            openApp(sysTool);
+          }, 800);
+        }
+      }
+    }
+  }, [isLocked, openApp]);
+
   if (isLocked) {
     return <Lockscreen onUnlock={() => setIsLocked(false)} />;
   }
