@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useService } from '@core/hooks/useService';
 import './azera-drop.css';
 
@@ -42,21 +42,58 @@ const playNotificationSound = () => {
   }
 };
 
-const DEFAULT_AVATARS = ['🦊', '🐱', '🐼', '🦁', '🐸', '🐨', '🦄', '🐰', '🐯', '🐙'];
+const DEFAULT_AVATARS = ['🦊', '🐱', '🐼', '🦁', '🐸', '🐨', '🦄', '🐰', '🐯', '🐙', '🦖', '🐬', '🦉', '🐝', '🐧'];
+
+// Detect device model name from user agent
+const getDeviceName = () => {
+  const ua = navigator.userAgent;
+  let os = "Device";
+  let browser = "";
+  
+  if (/windows/i.test(ua)) os = "Windows PC";
+  else if (/macintosh|mac os/i.test(ua)) os = "Macbook";
+  else if (/iphone/i.test(ua)) os = "iPhone";
+  else if (/ipad/i.test(ua)) os = "iPad";
+  else if (/android/i.test(ua)) {
+    os = /mobile/i.test(ua) ? "HP Android" : "Tablet Android";
+  } else if (/linux/i.test(ua)) os = "Linux PC";
+  
+  if (/chrome|crios/i.test(ua) && !/edge|edg/i.test(ua) && !/opr/i.test(ua)) browser = "Chrome";
+  else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) browser = "Safari";
+  else if (/firefox|fxios/i.test(ua)) browser = "Firefox";
+  else if (/edge|edg/i.test(ua)) browser = "Edge";
+  else if (/opr/i.test(ua)) browser = "Opera";
+  
+  return browser ? `${os} (${browser})` : os;
+};
+
+// Generate stable random emoji from peer ID hash sum
+const getStableAvatar = (id) => {
+  const charSum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return DEFAULT_AVATARS[Math.abs(charSum) % DEFAULT_AVATARS.length];
+};
 
 const AzeraDrop = () => {
   const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');
 
-  // Peer specifications
-  const [peerId] = useState(() => `peer-${Math.random().toString(36).substr(2, 9)}`);
-  const [myName, setMyName] = useState(() => localStorage.getItem('remuk_azera_name') || 'Perangkat Saya');
-  const [myAvatar, setMyAvatar] = useState(() => localStorage.getItem('remuk_azera_avatar') || '🦊');
+  // Peer specifications (Persisted locally to keep same emoji/ID)
+  const [peerId] = useState(() => {
+    let cachedId = localStorage.getItem('remuk_azera_peer_id');
+    if (!cachedId) {
+      cachedId = `peer-${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('remuk_azera_peer_id', cachedId);
+    }
+    return cachedId;
+  });
+
+  const myName = getDeviceName();
+  const myAvatar = getStableAvatar(peerId);
   
   // States
   const [networkKey, setNetworkKey] = useState('');
   const [peers, setPeers] = useState([]);
   const [incomingTransfer, setIncomingTransfer] = useState(null);
-  const [outgoingTransfer, setOutgoingTransfer] = useState(null); // { peer, fileName, progress, status, error }
+  const [outgoingTransfer, setOutgoingTransfer] = useState(null);
   
   const fileInputRef = useRef(null);
   const selectedPeerRef = useRef(null);
@@ -163,7 +200,6 @@ const AzeraDrop = () => {
           const trans = docSnap.data();
           if (trans.receiverId === peerId) {
             if (trans.status === 'pending') {
-              // Trigger notification play sound
               playNotificationSound();
               setIncomingTransfer({ ...trans, docId: docSnap.id });
             } else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
@@ -188,9 +224,7 @@ const AzeraDrop = () => {
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey || !outgoingTransfer) return;
 
-    const { doc, onSnapshot } = getFirestoreHelpers();
     let unsub;
-
     const listenOutgoing = async () => {
       const { doc, onSnapshot } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', outgoingTransfer.id);
@@ -238,7 +272,6 @@ const AzeraDrop = () => {
     });
 
     try {
-      // 1. Upload to tmpfiles.org
       const formData = new FormData();
       formData.append('file', file);
 
@@ -262,14 +295,12 @@ const AzeraDrop = () => {
       if (!res.ok) throw new Error('Gagal mengupload berkas ke server ephemeral.');
       const resData = await res.json();
       
-      // tmpfiles URL returns e.g. "https://tmpfiles.org/12345/file.txt".
-      // We convert it to direct download link: "https://tmpfiles.org/dl/12345/file.txt"
       const uploadUrl = resData.data.url;
       const downloadUrl = uploadUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
 
       setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'waiting' } : null);
 
-      // 2. Write transaction request to Firestore
+      // Write transaction request to Firestore
       const { doc, setDoc } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', transferId);
       
@@ -297,12 +328,9 @@ const AzeraDrop = () => {
     if (!incomingTransfer || !firebaseService?.db) return;
     try {
       const { doc, setDoc, deleteDoc } = await getFirestoreHelpers();
-      
-      // Update Firestore transaction status to accepted
       const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', incomingTransfer.id);
       await setDoc(docRef, { status: 'accepted' }, { merge: true });
 
-      // Automatically download the file
       const a = document.createElement('a');
       a.href = incomingTransfer.downloadUrl;
       a.download = incomingTransfer.fileName;
@@ -313,7 +341,6 @@ const AzeraDrop = () => {
 
       setIncomingTransfer(null);
 
-      // Delete document after short delay
       setTimeout(async () => {
         try {
           await deleteDoc(docRef);
@@ -342,13 +369,6 @@ const AzeraDrop = () => {
     } catch (e) {
       console.error(e);
     }
-  };
-
-  const handleProfileSave = (name, av) => {
-    setMyName(name);
-    setMyAvatar(av);
-    localStorage.setItem('remuk_azera_name', name);
-    localStorage.setItem('remuk_azera_avatar', av);
   };
 
   return (
@@ -437,48 +457,28 @@ const AzeraDrop = () => {
         </div>
       )}
 
-      {/* Left panel: Profile Customization */}
+      {/* Left panel: Profile Info (Automatic Device details) */}
       <div className="azera-left glass">
-        <h4 className="azera-title">👤 Identitas Saya</h4>
-        <div className="azera-profile">
-          <div className="azera-profile__avatar-select">
-            <span className="current-avatar">{myAvatar}</span>
-            <div className="avatar-grid">
-              {DEFAULT_AVATARS.map((av) => (
-                <button 
-                  key={av} 
-                  onClick={() => handleProfileSave(myName, av)}
-                  className={`avatar-choice ${myAvatar === av ? 'avatar-choice--active' : ''}`}
-                >
-                  {av}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="azera-profile__input-group">
-            <label>Nama Device (Terlihat oleh orang lain):</label>
-            <input 
-              type="text" 
-              value={myName}
-              onChange={(e) => handleProfileSave(e.target.value, myAvatar)}
-              placeholder="iPhone saya"
-              className="azera-input"
-            />
+        <h4 className="azera-title">📡 Identitas Saya</h4>
+        <div className="azera-profile-static">
+          <span className="current-avatar current-avatar--static">{myAvatar}</span>
+          <div className="azera-profile-static__details">
+            <h3 className="name">{myName}</h3>
+            <span className="subtitle">Mendeteksi otomatis</span>
           </div>
         </div>
 
         <div className="azera-info-box">
           <div className="azera-info-row">
             <span>Status:</span>
-            <span className="text-success">Siap Menerima Jaringan</span>
+            <span className="text-success">Siap Menerima</span>
           </div>
           <div className="azera-info-row">
             <span>Room Jaringan:</span>
             <span className="text-secondary" title={networkKey}>{networkKey ? networkKey.substring(0, 15) + '...' : 'Menghubungkan...'}</span>
           </div>
           <p className="note">
-            *AzeraDrop menggunakan enkripsi Geo-IP untuk mengelompokkan perangkat pada Wi-Fi/jaringan LAN lokal yang sama. Pastikan browser memberikan izin akses jaringan.
+            *AzeraDrop mendeteksi model browser & sistem operasi secara otomatis sebagai nama pengirim untuk mempermudah proses kirim.
           </p>
         </div>
       </div>
@@ -502,9 +502,8 @@ const AzeraDrop = () => {
 
           {/* Discovered Peers floating around radar */}
           {peers.map((peer, idx) => {
-            // Position peers in orbital positions dynamically based on index
             const angle = (idx * (360 / Math.max(1, peers.length)) * Math.PI) / 180;
-            const radius = 100 + (idx % 2 === 0 ? 0 : 25); // alternating orbits
+            const radius = 110 + (idx % 2 === 0 ? 0 : 25);
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
 
