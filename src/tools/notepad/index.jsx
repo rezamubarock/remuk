@@ -15,7 +15,7 @@ const sha256 = async (string) => {
 
 const Notepad = () => {
   // ─── Firebase hook ───
-  const { isReady: isFirebaseReady, service: firebaseService, error: firebaseError } = useService('firebase-firestore');
+  const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');
 
   // ─── Component states ───
   const [syncKey, setSyncKey] = useState(() => localStorage.getItem('remuk_notepad_key') || '');
@@ -32,6 +32,9 @@ const Notepad = () => {
   const [creationPassword, setCreationPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [pendingKey, setPendingKey] = useState('');
+
+  // Local IP-based network sync key
+  const [localNetKey, setLocalNetKey] = useState('');
 
   // Refs for tracking active listeners and debounce timers
   const unsubscribeRef = useRef(null);
@@ -67,28 +70,62 @@ const Notepad = () => {
     return { doc, getDoc, setDoc, onSnapshot };
   };
 
-  // ─── Firestore listener setup ───
-  const connectToKey = useCallback(async (key) => {
-    if (!firebaseService?.db) {
-      alert("Firebase belum terinisialisasi. Pastikan kamu sudah merestart server Vite setelah membuat file .env.local agar kredensial baru terbaca!");
-      return;
+  // Fetch Public IP to identify local network
+  const getLocalNetworkKey = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      if (data.ip) {
+        const ipHash = await sha256(data.ip);
+        return `local_${ipHash.substring(0, 16)}`;
+      }
+    } catch (e) {
+      // fallback to ipify
     }
+    try {
+      const res = await fetch('https://api64.ipify.org?format=json');
+      const data = await res.json();
+      if (data.ip) {
+        const ipHash = await sha256(data.ip);
+        return `local_${ipHash.substring(0, 16)}`;
+      }
+    } catch (e) {
+      // fallback
+    }
+    return 'local_network_fallback';
+  };
+
+  // ─── Firestore listener setup ───
+  const connectToKey = useCallback(async (key, isAutoLocal = false) => {
+    if (!firebaseService?.db) return;
     setSyncStatus('saving');
 
     try {
-      const { doc, getDoc, onSnapshot } = await getFirestoreHelpers();
+      const { doc, getDoc, setDoc, onSnapshot } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', key);
       const docSnap = await getDoc(docRef);
 
-      // If document doesn't exist, we must prompt for creation password
+      // If document doesn't exist, we auto-create for local sync, or prompt password for custom key
       if (!docSnap.exists()) {
-        setPendingKey(key);
-        setShowPasswordPrompt(true);
-        setSyncStatus('local');
-        return;
+        if (isAutoLocal || key.startsWith('local_')) {
+          const initialNotes = notesStateRef.current.length > 0 ? notesStateRef.current : [];
+          await setDoc(docRef, { notes: initialNotes });
+        } else {
+          setPendingKey(key);
+          setShowPasswordPrompt(true);
+          setSyncStatus('local');
+          return;
+        }
+      } else {
+        // Document exists: if local network key is empty/new and we have local notes, let's merge
+        const data = docSnap.data();
+        const remoteNotes = data.notes || [];
+        if (remoteNotes.length === 0 && notesStateRef.current.length > 0 && (isAutoLocal || key.startsWith('local_'))) {
+          await setDoc(docRef, { notes: notesStateRef.current });
+        }
       }
 
-      // Document exists: set active key and subscribe
+      // Subscribe to updates
       if (unsubscribeRef.current) unsubscribeRef.current();
 
       unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
@@ -98,10 +135,14 @@ const Notepad = () => {
           setNotes(remoteNotes);
           setSyncStatus('synced');
           setIsConnected(true);
-          localStorage.setItem('remuk_notepad_key', key);
-          setSyncKey(key);
 
-          // Update active note id if needed
+          if (!isAutoLocal) {
+            localStorage.setItem('remuk_notepad_key', key);
+            setSyncKey(key);
+          } else {
+            setLocalNetKey(key);
+          }
+
           if (remoteNotes.length > 0) {
             setActiveNoteId((prevId) => 
               remoteNotes.some((n) => n.id === prevId) ? prevId : remoteNotes[0].id
@@ -121,18 +162,19 @@ const Notepad = () => {
     }
   }, [firebaseService]);
 
-  // ─── Auto connect on mount ───
+  // ─── Auto connect / local sync key setup ───
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const syncParam = params.get('sync');
-    const targetKey = syncParam || syncKey;
-
-    if (targetKey && isFirebaseReady && firebaseService?.db) {
-      connectToKey(targetKey);
-      if (syncParam) {
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-      }
+    if (isFirebaseReady && firebaseService?.db) {
+      (async () => {
+        if (syncKey) {
+          // Connect to custom sync key
+          connectToKey(syncKey);
+        } else {
+          // Connect to local network sync automatically
+          const localKey = await getLocalNetworkKey();
+          connectToKey(localKey, true);
+        }
+      })();
     }
   }, [isFirebaseReady, firebaseService, syncKey, connectToKey]);
 
@@ -144,7 +186,7 @@ const Notepad = () => {
     };
   }, []);
 
-  // ─── Password verification for new database ───
+  // ─── Password verification for custom database ───
   const handleVerifyPassword = async (e) => {
     e.preventDefault();
     setPasswordError(false);
@@ -172,11 +214,29 @@ const Notepad = () => {
     }
   };
 
+  // Disconnect from custom key, falling back to local network sync
+  const handleDisconnect = async () => {
+    if (unsubscribeRef.current) unsubscribeRef.current();
+    localStorage.removeItem('remuk_notepad_key');
+    setSyncKey('');
+    setIsConnected(false);
+    
+    // Automatically reconnect to local network room
+    const localKey = await getLocalNetworkKey();
+    connectToKey(localKey, true);
+    setShowSettings(false);
+  };
+
   // ─── Save logic (Local vs Cloud with 3s Debounce) ───
   const triggerSave = useCallback((updatedNotes) => {
     setNotes(updatedNotes);
+    
+    // Save to localStorage cache for instant launch
+    localStorage.setItem('remuk_notepad_local_notes', JSON.stringify(updatedNotes));
 
-    if (isConnected && syncKey && firebaseService?.db) {
+    const targetKey = syncKey || localNetKey;
+
+    if (isConnected && targetKey && firebaseService?.db) {
       setSyncStatus('saving');
       
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -184,7 +244,7 @@ const Notepad = () => {
       debounceTimerRef.current = setTimeout(async () => {
         try {
           const { doc, setDoc } = await getFirestoreHelpers();
-          const docRef = doc(firebaseService.db, 'notes', syncKey);
+          const docRef = doc(firebaseService.db, 'notes', targetKey);
           await setDoc(docRef, { notes: updatedNotes });
           setSyncStatus('synced');
         } catch (e) {
@@ -193,10 +253,9 @@ const Notepad = () => {
         }
       }, 3000); 
     } else {
-      localStorage.setItem('remuk_notepad_local_notes', JSON.stringify(updatedNotes));
       setSyncStatus('local');
     }
-  }, [isConnected, syncKey, firebaseService]);
+  }, [isConnected, syncKey, localNetKey, firebaseService]);
 
   // ─── Note Actions ───
   const handleAddNote = () => {
@@ -240,84 +299,74 @@ const Notepad = () => {
       updated.splice(activeIdx, 1);
       updated.unshift(activeObj);
     }
+
     triggerSave(updated);
   };
 
-  const disconnect = () => {
-    if (unsubscribeRef.current) unsubscribeRef.current();
-    setIsConnected(false);
-    setSyncKey('');
-    localStorage.removeItem('remuk_notepad_key');
-    setSyncStatus('local');
-    const local = localStorage.getItem('remuk_notepad_local_notes');
-    if (local) {
-      setNotes(JSON.parse(local));
-    }
-  };
-
-  const getSyncLink = () => {
-    return `${window.location.origin}/?open=notepad&sync=${syncKey}`;
-  };
-
-  const activeNote = notes.find((n) => n.id === activeNoteId);
-
-  // Scroll synchronization between line numbers gutter and textarea
+  // Scroll sync line numbers gutter
   const handleScroll = (e) => {
     if (lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = e.target.scrollTop;
     }
   };
 
-  // Generate line numbers matching textarea line counts
-  const lines = activeNote?.content ? activeNote.content.split('\n') : [''];
-  const lineNumbers = Array.from({ length: Math.max(lines.length, 1) }, (_, i) => i + 1);
+  const activeNote = notes.find((n) => n.id === activeNoteId);
+  const lines = activeNote ? activeNote.content.split('\n') : [];
+  const lineNumbers = Array.from({ length: Math.max(1, lines.length) }, (_, i) => i + 1);
 
   return (
     <div className="np">
-      {/* Settings / Sync Panel Overlay */}
+      {/* Settings Modal (Cloud Sync Config) */}
       {showSettings && (
-        <div className="np-settings-panel">
-          <div className="np-settings-card glass">
-            <h3>Pengaturan Sinkronisasi</h3>
+        <div className="np-settings-panel" onClick={() => setShowSettings(false)}>
+          <div className="np-settings-card glass" onClick={(e) => e.stopPropagation()}>
+            <h3>Sinkronisasi Cloud & Jaringan</h3>
             
-            {firebaseError && (
-              <div className="np-error-box">
-                <strong>Error Firebase:</strong> {firebaseError.message || "Gagal memuat provider database. Restart dev server."}
-              </div>
-            )}
-
-            {isConnected ? (
+            {syncKey ? (
               <div className="np-settings-connected">
-                <p>Terkoneksi dengan Sync Key:</p>
-                <div className="np-settings-key-badge">{syncKey}</div>
-                <div className="np-settings-link-wrapper">
-                  <input type="text" readOnly value={getSyncLink()} className="np-settings-link" />
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(getSyncLink())}
-                    className="np-btn np-btn--accent"
-                  >
-                    Salin Link
-                  </button>
-                </div>
-                <button onClick={disconnect} className="np-btn np-btn--danger">Putuskan Koneksi</button>
+                <p>Status: <strong>Terhubung ke Database Kustom</strong></p>
+                <p>Sync Key: <code className="np-code">{syncKey}</code></p>
+                <p className="np-settings-desc">Catatan tersinkronisasi di semua browser menggunakan Sync Key ini.</p>
+                <button onClick={handleDisconnect} className="np-btn np-btn--danger">
+                  Putuskan Sinkronisasi
+                </button>
               </div>
             ) : (
-              <form onSubmit={(e) => { e.preventDefault(); connectToKey(inputKey); }} className="np-settings-form">
-                <p>Masukkan Sync Key untuk menyelaraskan catatan:</p>
-                <input
-                  type="text"
-                  placeholder="Contoh: catatan-reza"
-                  value={inputKey}
-                  onChange={(e) => setInputKey(e.target.value)}
-                  className="np-settings-input"
-                />
-                <button type="submit" className="np-btn np-btn--accent" disabled={!inputKey}>
-                  Hubungkan
-                </button>
-              </form>
+              <div className="np-settings-connected">
+                <p>Status: <strong>🟢 Sinkronisasi Jaringan Lokal (Otomatis)</strong></p>
+                <p>Room ID: <code className="np-code">{localNetKey || 'Mencari...'}</code></p>
+                <p className="np-settings-desc">
+                  Catatanmu otomatis tersinkronisasi di semua perangkat pada Wi-Fi/jaringan yang sama tanpa perlu login.
+                </p>
+              </div>
             )}
 
-            <button onClick={() => setShowSettings(false)} className="np-settings-close-btn">Tutup</button>
+            <hr className="np-divider" />
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (inputKey) {
+                  connectToKey(inputKey);
+                  setInputKey('');
+                  setShowSettings(false);
+                }
+              }}
+              className="np-settings-form"
+            >
+              <label>Gunakan Sync Key Kustom (Beda Jaringan):</label>
+              <input
+                type="text"
+                placeholder="Masukkan Sync Key (misal: rausyani)"
+                value={inputKey}
+                onChange={(e) => setInputKey(e.target.value)}
+                className="np-settings-input"
+              />
+              <div className="np-btn-row">
+                <button type="submit" className="np-btn np-btn--accent" disabled={!inputKey}>Hubungkan</button>
+                <button type="button" onClick={() => setShowSettings(false)} className="np-btn np-btn--ghost">Tutup</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -352,10 +401,11 @@ const Notepad = () => {
       <div className={`np-sidebar ${isSidebarOpen ? 'np-sidebar--open' : ''}`}>
         <div className="np-sidebar__header">
           <button className="np-btn np-btn--ghost" onClick={() => setShowSettings(true)} title="Sinkronisasi Cloud">
-            {syncStatus === 'local' && <span className="np-status-icon">☁️ Offline</span>}
-            {syncStatus === 'synced' && <span className="np-status-icon">🟢 Terhubung</span>}
-            {syncStatus === 'saving' && <span className="np-status-icon np-status-icon--spin">🔄 Menyimpan</span>}
-            {syncStatus === 'error' && <span className="np-status-icon">🔴 Error</span>}
+            {syncKey ? (
+              <span className="np-status-icon">🟢 Terhubung</span>
+            ) : (
+              <span className="np-status-icon">📶 Jaringan Lokal</span>
+            )}
           </button>
           <button className="np-btn np-btn--accent" onClick={handleAddNote}>
             + Catatan
@@ -429,10 +479,7 @@ const Notepad = () => {
                   ➕
                 </button>
                 <button className="npp-quick-btn" onClick={() => setShowSettings(true)} title="Sinkronisasi Cloud">
-                  {syncStatus === 'local' && '☁️'}
-                  {syncStatus === 'synced' && '🟢'}
-                  {syncStatus === 'saving' && '🔄'}
-                  {syncStatus === 'error' && '🔴'}
+                  {syncKey ? '🟢' : '📶'}
                 </button>
               </div>
             </div>
