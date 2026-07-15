@@ -73,6 +73,9 @@ remuk/
 │   │   └── settings/
 │   │       ├── index.jsx              # Kustomisasi shortcut (password: 111111Aa)
 │   │       └── settings.css           # Scoped CSS untuk pengaturan
+│   │   └── system-info/
+│   │       ├── index.jsx              # Specs, WebGL GPU, performance.memory heap stats
+│   │       └── system-info.css        # Scoped CSS untuk sensor sistem
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
@@ -355,6 +358,7 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 | Alat Teks | ✅ Done | — |
 | Notepad Seamless | ✅ Done | firebase-firestore |
 | Pengaturan Layout | ✅ Done | firebase-firestore |
+| Sistem & Sensor | ✅ Done | — |
 | Email Sementara | 🔜 Planned | cloudflare-worker |
 | Kalkulator | 🔜 Planned | — |
 | Pemilih Warna | 🔜 Planned | — |
