@@ -49,27 +49,24 @@ const Lockscreen = ({ onUnlock, firebaseService }) => {
       if (inputHash === HASH_TARGET) {
         sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
         
-        // Save network IP hash to Firestore to bypass on future entries
+        // Save unique device ID to Firestore to bypass on future entries
         if (firebaseService?.db) {
           try {
-            const res = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-            if (data.ip) {
-              const utf8 = new TextEncoder().encode(data.ip);
-              const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
-              const hashArray = Array.from(new Uint8Array(hashBuffer));
-              const ipHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-              const { doc, setDoc } = await import('firebase/firestore');
-              const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_ips');
-              await setDoc(docRef, {
-                unlockedHashes: {
-                  [ipHash]: true
-                }
-              }, { merge: true });
+            let deviceId = localStorage.getItem('remuk_device_id');
+            if (!deviceId) {
+              deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+              localStorage.setItem('remuk_device_id', deviceId);
             }
-          } catch (netErr) {
-            console.error('Failed to log network IP for auto-unlock:', netErr);
+
+            const { doc, setDoc } = await import('firebase/firestore');
+            const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_devices');
+            await setDoc(docRef, {
+              unlockedDevices: {
+                [deviceId]: true
+              }
+            }, { merge: true });
+          } catch (devErr) {
+            console.error('Failed to log device ID for auto-unlock:', devErr);
           }
         }
         

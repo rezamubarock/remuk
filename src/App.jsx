@@ -78,33 +78,31 @@ const App = () => {
     }
   }, [isLocked, openApp]);
 
-  // Real-time network auto-unlock check
+  // Real-time device auto-unlock check
   useEffect(() => {
     if (isFirebaseReady && firebaseService?.db && isLocked) {
       const checkAutoUnlock = async () => {
         try {
-          const res = await fetch('https://api.ipify.org?format=json');
-          const data = await res.json();
-          if (data.ip) {
-            const utf8 = new TextEncoder().encode(data.ip);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const ipHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-            
-            const { doc, getDoc } = await import('firebase/firestore');
-            const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_ips');
-            const snap = await getDoc(docRef);
-            
-            if (snap.exists()) {
-              const docData = snap.data();
-              if (docData.unlockedHashes && docData.unlockedHashes[ipHash] === true) {
-                sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
-                setIsLocked(false);
-              }
+          // Get or generate unique device ID
+          let deviceId = localStorage.getItem('remuk_device_id');
+          if (!deviceId) {
+            deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+            localStorage.setItem('remuk_device_id', deviceId);
+          }
+          
+          const { doc, getDoc } = await import('firebase/firestore');
+          const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_devices');
+          const snap = await getDoc(docRef);
+          
+          if (snap.exists()) {
+            const docData = snap.data();
+            if (docData.unlockedDevices && docData.unlockedDevices[deviceId] === true) {
+              sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
+              setIsLocked(false);
             }
           }
         } catch (e) {
-          console.error('Network auto-unlock check bypassed due to connection or fetch error:', e);
+          console.error('Device auto-unlock check failed:', e);
         }
       };
       checkAutoUnlock();

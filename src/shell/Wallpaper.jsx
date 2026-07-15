@@ -80,6 +80,7 @@ const Wallpaper = () => {
       {/* Centered Allahumma Sugeh text */}
       <div className="wallpaper-info">
         <h2 className="wallpaper-sugeh">Allahumma Sugeh</h2>
+        <span className="wallpaper-by">by RezaMubarok.com</span>
       </div>
     </div>
   );

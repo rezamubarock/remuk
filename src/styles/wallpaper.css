@@ -106,6 +106,19 @@
   animation: sugehPulse 3s ease-in-out infinite alternate;
 }
 
+.wallpaper-by {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 8px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  text-align: center;
+  pointer-events: none;
+}
+
 @keyframes sugehPulse {
   0% {
     transform: scale(0.98);
@@ -201,6 +214,11 @@
   }
   .wallpaper-sugeh {
     font-size: 1.4rem;
+  }
+  .wallpaper-by {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    margin-top: 4px;
   }
   .wallpaper-diag {
     max-width: 100%;
