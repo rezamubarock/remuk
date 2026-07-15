@@ -76,6 +76,9 @@ remuk/
 │   │   └── system-info/
 │   │       ├── index.jsx              # Specs, WebGL GPU, performance.memory heap stats
 │   │       └── system-info.css        # Scoped CSS untuk sensor sistem
+│   │   └── azera-drop/
+│   │       ├── index.jsx              # Klon AirDrop: peer-to-peer file sharing lokal
+│   │       └── azera-drop.css         # Scoped CSS untuk AirDrop radar & dialog
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
@@ -359,6 +362,7 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 | Notepad Seamless | ✅ Done | firebase-firestore |
 | Pengaturan Layout | ✅ Done | firebase-firestore |
 | Sistem & Sensor | ✅ Done | — |
+| AzeraDrop | ✅ Done | firebase-firestore |
 | Email Sementara | 🔜 Planned | cloudflare-worker |
 | Kalkulator | 🔜 Planned | — |
 | Pemilih Warna | 🔜 Planned | — |
