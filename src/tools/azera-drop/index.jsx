@@ -92,17 +92,24 @@ const AzeraDrop = () => {
   const [networkKey, setNetworkKey] = useState('');
   const [customRoomCode, setCustomRoomCode] = useState(() => localStorage.getItem('remuk_azera_room') || '');
   const [peers, setPeers] = useState([]);
-  const [incomingTransfer, setIncomingTransfer] = useState(null);
-  const [outgoingTransfer, setOutgoingTransfer] = useState(null);
+  
+  const [incomingTransfer, setIncomingTransfer] = useState(null); // { senderName, senderIcon, fileName, fileSize, progress, status... }
+  const [outgoingTransfer, setOutgoingTransfer] = useState(null); // { peer, fileName, progress, status, error }
   const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'info' (for mobile layout)
   
   const fileInputRef = useRef(null);
   const selectedPeerRef = useRef(null);
 
+  // WebRTC refs
+  const peerConnectionRef = useRef(null);
+  const dataChannelRef = useRef(null);
+  const receivedChunksRef = useRef([]);
+  const receivedSizeRef = useRef(0);
+
   // Firestore helpers
   const getFirestoreHelpers = async () => {
-    const { doc, setDoc, getDoc, deleteField, onSnapshot } = await import('firebase/firestore');
-    return { doc, setDoc, getDoc, deleteField, onSnapshot };
+    const { doc, setDoc, deleteField, onSnapshot } = await import('firebase/firestore');
+    return { doc, setDoc, deleteField, onSnapshot };
   };
 
   // Get local network key (IP hash)
@@ -115,7 +122,6 @@ const AzeraDrop = () => {
     const fetchNetKey = async () => {
       let ip = '127.0.0.1';
       try {
-        // Use ipify explicitly to enforce IPv4 standard NAT address for identical hash rooms
         const res = await fetch('https://api.ipify.org?format=json');
         const data = await res.json();
         if (data.ip) ip = data.ip;
@@ -184,7 +190,21 @@ const AzeraDrop = () => {
     };
   }, [isFirebaseReady, firebaseService, networkKey, peerId, myName, myAvatar]);
 
-  // Listen to peer list & incoming transfers in Firestore (/notes/drop_transfers_ROOM)
+  // Clean up WebRTC resources helper
+  const closeWebRTC = () => {
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close();
+      dataChannelRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    receivedChunksRef.current = [];
+    receivedSizeRef.current = 0;
+  };
+
+  // Listen to peer list & incoming WebRTC transfers in Firestore (/notes/drop_transfers_ROOM)
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey) return;
 
@@ -212,23 +232,45 @@ const AzeraDrop = () => {
         }
       });
 
-      // 2. Listen for transfers targeting me
+      // 2. Listen for WebRTC connection offers targeting me
       const transfersDocRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       unsubTransfers = onSnapshot(transfersDocRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           const transfersMap = data.transfers || {};
           
-          Object.keys(transfersMap).forEach((id) => {
+          Object.keys(transfersMap).forEach(async (id) => {
             const trans = transfersMap[id];
             if (trans.receiverId === peerId) {
-              if (trans.status === 'pending') {
+              // Case A: Sender has created a pending request & SDP Offer
+              if (trans.status === 'pending' && (!incomingTransfer || incomingTransfer.id !== trans.id)) {
                 playNotificationSound();
-                setIncomingTransfer({ ...trans, docId: id });
-              } else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
-                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
-              } else if (trans.status === 'declined' && outgoingTransfer?.id === trans.id) {
+                setIncomingTransfer({ ...trans, progress: 0 });
+              }
+              // Case B: Receiver has accepted, waiting for SDP Answer connection on Sender side
+              else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
+                if (trans.answer && peerConnectionRef.current && !peerConnectionRef.current.currentRemoteDescription) {
+                  try {
+                    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(trans.answer));
+                    
+                    // Add receiver candidates
+                    if (trans.receiverCandidates) {
+                      trans.receiverCandidates.forEach((cand) => {
+                        peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+                      });
+                    }
+                  } catch (e) {
+                    console.error('Failed to set remote answer description:', e);
+                  }
+                }
+              }
+              // Case C: Sender or Receiver has completed/declined
+              else if (trans.status === 'declined' && outgoingTransfer?.id === trans.id) {
                 setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+                closeWebRTC();
+              } else if (trans.status === 'completed' && outgoingTransfer?.id === trans.id) {
+                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
+                closeWebRTC();
               }
             }
           });
@@ -242,14 +284,14 @@ const AzeraDrop = () => {
       if (unsubPeers) unsubPeers();
       if (unsubTransfers) unsubTransfers();
     };
-  }, [isFirebaseReady, firebaseService, networkKey, peerId, outgoingTransfer?.id]);
+  }, [isFirebaseReady, firebaseService, networkKey, peerId, outgoingTransfer?.id, incomingTransfer]);
 
-  // Listen for output status changes
+  // Listen to remote changes in transfers Doc for ICE candidates updates on active connection
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey || !outgoingTransfer) return;
 
     let unsub;
-    const listenOutgoing = async () => {
+    const listenOutgoingSDP = async () => {
       const { doc, onSnapshot } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
@@ -259,17 +301,21 @@ const AzeraDrop = () => {
           const transfersMap = data.transfers || {};
           const trans = transfersMap[outgoingTransfer.id];
           if (trans) {
-            if (trans.status === 'accepted') {
-              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
-            } else if (trans.status === 'declined') {
-              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+            if (trans.status === 'accepted' && trans.answer && peerConnectionRef.current && !peerConnectionRef.current.currentRemoteDescription) {
+              peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(trans.answer))
+                .catch(() => {});
+            }
+            if (trans.receiverCandidates && peerConnectionRef.current) {
+              trans.receiverCandidates.forEach((cand) => {
+                peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+              });
             }
           }
         }
       });
     };
 
-    listenOutgoing();
+    listenOutgoingSDP();
     return () => {
       if (unsub) unsub();
     };
@@ -283,51 +329,100 @@ const AzeraDrop = () => {
     }
   };
 
-  // Upload file and request transaction
+  // Sender: Initialize P2P connection, send SDP Offer and register file metadata
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     const peer = selectedPeerRef.current;
     if (!file || !peer || !networkKey || !firebaseService?.db) return;
 
+    closeWebRTC();
     const transferId = `trans-${Date.now()}`;
+    
     setOutgoingTransfer({
       id: transferId,
       peer,
       fileName: file.name,
-      progress: 5,
-      status: 'uploading',
+      progress: 0,
+      status: 'connecting',
       error: null
     });
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const progTimer = setInterval(() => {
-        setOutgoingTransfer((prev) => {
-          if (prev && prev.status === 'uploading' && prev.progress < 90) {
-            return { ...prev, progress: prev.progress + 15 };
-          }
-          return prev;
-        });
-      }, 300);
-
-      const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-        method: 'POST',
-        body: formData,
+      // 1. Setup RTCPeerConnection with public STUN servers
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
+      peerConnectionRef.current = pc;
 
-      clearInterval(progTimer);
+      // 2. Create P2P DataChannel
+      const dc = pc.createDataChannel('fileTransfer', { ordered: true });
+      dc.binaryType = 'arraybuffer';
+      dataChannelRef.current = dc;
 
-      if (!res.ok) throw new Error('Gagal mengupload berkas ke server ephemeral.');
-      const resData = await res.json();
-      
-      const uploadUrl = resData.data.url;
-      const downloadUrl = uploadUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+      // 3. Collect ICE candidates
+      const senderCandidates = [];
+      pc.onicecandidate = async (ev) => {
+        if (ev.candidate) {
+          senderCandidates.push(ev.candidate.toJSON());
+          const { doc, setDoc } = await getFirestoreHelpers();
+          const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+          await setDoc(docRef, {
+            transfers: {
+              [transferId]: { senderCandidates }
+            }
+          }, { merge: true });
+        }
+      };
 
-      setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'waiting' } : null);
+      // 4. Data channel open trigger -> start streaming raw file buffer chunks
+      dc.onopen = () => {
+        setOutgoingTransfer((prev) => prev ? { ...prev, status: 'sending', progress: 0 } : null);
+        
+        const fileReader = new FileReader();
+        fileReader.onload = (event) => {
+          const buffer = event.target.result;
+          const chunkSize = 16384; // 16KB standard frame size
+          let offset = 0;
+          
+          const sendChunk = () => {
+            while (offset < buffer.byteLength) {
+              if (dc.bufferedAmount > 65535) { // wait if WebRTC buffer is full
+                setTimeout(sendChunk, 40);
+                return;
+              }
+              const chunk = buffer.slice(offset, offset + chunkSize);
+              dc.send(chunk);
+              offset += chunkSize;
+              
+              const progress = Math.min(99, Math.floor((offset / buffer.byteLength) * 100));
+              setOutgoingTransfer((prev) => prev ? { ...prev, progress } : null);
+            }
+            
+            // Send End-Of-File (EOF) completion token
+            dc.send('EOF_SIGNAL');
+            setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'completed' } : null);
+            
+            // Update Firestore transfer status
+            getFirestoreHelpers().then(async ({ doc, setDoc }) => {
+              const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+              await setDoc(docRef, {
+                transfers: {
+                  [transferId]: { status: 'completed' }
+                }
+              }, { merge: true });
+            });
+          };
+          
+          sendChunk();
+        };
+        fileReader.readAsArrayBuffer(file);
+      };
 
-      // Write transaction request to Firestore Doc
+      // 5. Create local SDP Offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // 6. Push Offer & metadata to transfers room doc
       const { doc, setDoc } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
@@ -341,8 +436,11 @@ const AzeraDrop = () => {
             receiverId: peer.id,
             fileName: file.name,
             fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-            downloadUrl,
+            fileType: file.type || 'application/octet-stream',
+            totalBytes: file.size,
             status: 'pending',
+            offer: { sdp: offer.sdp, type: offer.type },
+            senderCandidates: [],
             createdAt: Date.now()
           }
         }
@@ -351,47 +449,108 @@ const AzeraDrop = () => {
     } catch (err) {
       console.error(err);
       setOutgoingTransfer((prev) => prev ? { ...prev, status: 'error', error: err.message } : null);
+      closeWebRTC();
     }
   };
 
-  // Accept incoming transfer
+  // Receiver: Accept P2P connection, register SDP Answer, listen to chunks and trigger Blob download
   const handleAccept = async () => {
     if (!incomingTransfer || !firebaseService?.db) return;
+    closeWebRTC();
+
+    setIncomingTransfer((prev) => prev ? { ...prev, status: 'connecting', progress: 0 } : null);
+
     try {
-      const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+      // 1. Setup peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      peerConnectionRef.current = pc;
+
+      // 2. Gather receiver ICE Candidates
+      const receiverCandidates = [];
+      pc.onicecandidate = async (ev) => {
+        if (ev.candidate) {
+          receiverCandidates.push(ev.candidate.toJSON());
+          const { doc, setDoc } = await getFirestoreHelpers();
+          const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+          await setDoc(docRef, {
+            transfers: {
+              [incomingTransfer.id]: { receiverCandidates }
+            }
+          }, { merge: true });
+        }
+      };
+
+      // 3. Listen for data channel creation
+      pc.ondatachannel = (ev) => {
+        const dc = ev.channel;
+        dc.binaryType = 'arraybuffer';
+        dataChannelRef.current = dc;
+
+        dc.onopen = () => {
+          setIncomingTransfer((prev) => prev ? { ...prev, status: 'receiving', progress: 0 } : null);
+        };
+
+        dc.onmessage = (e) => {
+          if (e.data === 'EOF_SIGNAL') {
+            // Reassemble buffer chunks into final downloadable file Blob
+            const fileBlob = new Blob(receivedChunksRef.current, { type: incomingTransfer.fileType });
+            const fileUrl = URL.createObjectURL(fileBlob);
+            
+            // Trigger instant download
+            const a = document.createElement('a');
+            a.href = fileUrl;
+            a.download = incomingTransfer.fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(fileUrl);
+
+            setIncomingTransfer((prev) => prev ? { ...prev, status: 'completed', progress: 100 } : null);
+            closeWebRTC();
+          } else {
+            receivedChunksRef.current.push(e.data);
+            receivedSizeRef.current += e.data.byteLength;
+            
+            const progress = Math.min(99, Math.floor((receivedSizeRef.current / incomingTransfer.totalBytes) * 100));
+            setIncomingTransfer((prev) => prev ? { ...prev, progress } : null);
+          }
+        };
+      };
+
+      // 4. Set Remote SDP Description (Offer) from Sender
+      await pc.setRemoteDescription(new RTCSessionDescription(incomingTransfer.offer));
+
+      // 5. Generate SDP Answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // 6. Write Answer & update status to accepted in Firestore
+      const { doc, setDoc } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
       await setDoc(docRef, {
         transfers: {
-          [incomingTransfer.docId]: {
-            status: 'accepted'
+          [incomingTransfer.id]: {
+            status: 'accepted',
+            answer: { sdp: answer.sdp, type: answer.type },
+            receiverCandidates: []
           }
         }
       }, { merge: true });
 
-      // Automatically download the file
-      const a = document.createElement('a');
-      a.href = incomingTransfer.downloadUrl;
-      a.download = incomingTransfer.fileName;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Add sender candidates if they already exist
+      if (incomingTransfer.senderCandidates) {
+        incomingTransfer.senderCandidates.forEach((cand) => {
+          pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+        });
+      }
 
-      setIncomingTransfer(null);
-
-      // Clean up map key after short delay
-      setTimeout(async () => {
-        try {
-          await setDoc(docRef, {
-            transfers: {
-              [incomingTransfer.docId]: deleteField()
-            }
-          }, { merge: true });
-        } catch (e) {}
-      }, 5000);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      setIncomingTransfer((prev) => prev ? { ...prev, status: 'error', error: err.message } : null);
+      closeWebRTC();
     }
   };
 
@@ -404,19 +563,20 @@ const AzeraDrop = () => {
       
       await setDoc(docRef, {
         transfers: {
-          [incomingTransfer.docId]: {
+          [incomingTransfer.id]: {
             status: 'declined'
           }
         }
       }, { merge: true });
       
       setIncomingTransfer(null);
+      closeWebRTC();
 
       setTimeout(async () => {
         try {
           await setDoc(docRef, {
             transfers: {
-              [incomingTransfer.docId]: deleteField()
+              [incomingTransfer.id]: deleteField()
             }
           }, { merge: true });
         } catch (e) {}
@@ -436,7 +596,40 @@ const AzeraDrop = () => {
       } else {
         localStorage.removeItem('remuk_azera_room');
       }
+      closeWebRTC();
     }
+  };
+
+  const closeOutgoingModal = async () => {
+    if (outgoingTransfer && firebaseService?.db) {
+      try {
+        const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+        const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+        await setDoc(docRef, {
+          transfers: {
+            [outgoingTransfer.id]: deleteField()
+          }
+        }, { merge: true });
+      } catch (e) {}
+    }
+    setOutgoingTransfer(null);
+    closeWebRTC();
+  };
+
+  const closeIncomingModal = async () => {
+    if (incomingTransfer && firebaseService?.db) {
+      try {
+        const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+        const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+        await setDoc(docRef, {
+          transfers: {
+            [incomingTransfer.id]: deleteField()
+          }
+        }, { merge: true });
+      } catch (e) {}
+    }
+    setIncomingTransfer(null);
+    closeWebRTC();
   };
 
   return (
@@ -447,7 +640,7 @@ const AzeraDrop = () => {
           className={`azera-tab-btn ${activeTab === 'radar' ? 'azera-tab-btn--active' : ''}`}
           onClick={() => setActiveTab('radar')}
         >
-          📡 Radar Radar
+          📡 Radar Pencarian
         </button>
         <button 
           className={`azera-tab-btn ${activeTab === 'info' ? 'azera-tab-btn--active' : ''}`}
@@ -474,20 +667,55 @@ const AzeraDrop = () => {
                 <span className="emoji">{incomingTransfer.senderIcon}</span>
               </div>
               <h4 className="azera-dialog__title">AzeraDrop</h4>
-              <p className="azera-dialog__desc">
-                <strong>{incomingTransfer.senderName}</strong> ingin mengirimkan berkas:
-              </p>
-              <div className="azera-dialog__file-box">
-                <span className="file-icon">📄</span>
-                <div className="file-details">
-                  <span className="name" title={incomingTransfer.fileName}>{incomingTransfer.fileName}</span>
-                  <span className="size">{incomingTransfer.fileSize}</span>
+              
+              {(!incomingTransfer.status || incomingTransfer.status === 'pending') && (
+                <>
+                  <p className="azera-dialog__desc">
+                    <strong>{incomingTransfer.senderName}</strong> ingin mengirimkan berkas:
+                  </p>
+                  <div className="azera-dialog__file-box">
+                    <span className="file-icon">📄</span>
+                    <div className="file-details">
+                      <span className="name" title={incomingTransfer.fileName}>{incomingTransfer.fileName}</span>
+                      <span className="size">{incomingTransfer.fileSize}</span>
+                    </div>
+                  </div>
+                  <div className="azera-dialog__buttons">
+                    <button className="btn btn--decline" onClick={handleDecline}>Tolak</button>
+                    <button className="btn btn--accept" onClick={handleAccept}>Terima</button>
+                  </div>
+                </>
+              )}
+
+              {incomingTransfer.status === 'connecting' && (
+                <div className="azera-status">
+                  <div className="spinner-mini" />
+                  <span>Menghubungkan jalur P2P...</span>
                 </div>
-              </div>
-              <div className="azera-dialog__buttons">
-                <button className="btn btn--decline" onClick={handleDecline}>Tolak</button>
-                <button className="btn btn--accept" onClick={handleAccept}>Terima</button>
-              </div>
+              )}
+
+              {incomingTransfer.status === 'receiving' && (
+                <div className="azera-progress">
+                  <div className="azera-progress__bar">
+                    <div className="fill" style={{ width: `${incomingTransfer.progress}%` }} />
+                  </div>
+                  <span>Menerima data... {incomingTransfer.progress}%</span>
+                </div>
+              )}
+
+              {incomingTransfer.status === 'completed' && (
+                <div className="azera-status success">
+                  <span>🟢 Berkas selesai diunduh secara P2P!</span>
+                  <button onClick={closeIncomingModal} className="btn btn--ok">Tutup</button>
+                </div>
+              )}
+
+              {incomingTransfer.status === 'error' && (
+                <div className="azera-status error">
+                  <span>Gagal: {incomingTransfer.error}</span>
+                  <button onClick={closeIncomingModal} className="btn btn--ok">Tutup</button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -502,40 +730,40 @@ const AzeraDrop = () => {
               <h4 className="azera-dialog__title">Mengirim ke {outgoingTransfer.peer.name}</h4>
               <p className="azera-dialog__desc">{outgoingTransfer.fileName}</p>
               
-              {outgoingTransfer.status === 'uploading' && (
+              {outgoingTransfer.status === 'connecting' && (
+                <div className="azera-status">
+                  <div className="spinner-mini" />
+                  <span>Menghubungkan jalur P2P...</span>
+                </div>
+              )}
+
+              {outgoingTransfer.status === 'sending' && (
                 <div className="azera-progress">
                   <div className="azera-progress__bar">
                     <div className="fill" style={{ width: `${outgoingTransfer.progress}%` }} />
                   </div>
-                  <span>Mengunggah berkas... {outgoingTransfer.progress}%</span>
-                </div>
-              )}
-
-              {outgoingTransfer.status === 'waiting' && (
-                <div className="azera-status">
-                  <div className="spinner-mini" />
-                  <span>Menunggu persetujuan penerima...</span>
+                  <span>Mengirim langsung... {outgoingTransfer.progress}%</span>
                 </div>
               )}
 
               {outgoingTransfer.status === 'completed' && (
                 <div className="azera-status success">
                   <span>🟢 Berkas diterima & diunduh!</span>
-                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                  <button onClick={closeOutgoingModal} className="btn btn--ok">Tutup</button>
                 </div>
               )}
 
               {outgoingTransfer.status === 'declined' && (
                 <div className="azera-status error">
                   <span>🔴 Pengiriman ditolak oleh penerima.</span>
-                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                  <button onClick={closeOutgoingModal} className="btn btn--ok">Tutup</button>
                 </div>
               )}
 
               {outgoingTransfer.status === 'error' && (
                 <div className="azera-status error">
                   <span>Gagal: {outgoingTransfer.error}</span>
-                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                  <button onClick={closeOutgoingModal} className="btn btn--ok">Tutup</button>
                 </div>
               )}
             </div>
@@ -568,7 +796,7 @@ const AzeraDrop = () => {
             </button>
 
             <p className="note">
-              *Secara default, AzeraDrop menghubungkan perangkat pada jaringan Wi-Fi/IP publik yang sama. Jika perangkat tidak saling terdeteksi, klik <strong>Hubungkan Room Manual</strong> di atas lalu ketik kata/kunci yang sama pada kedua perangkat.
+              *AzeraDrop menggunakan <strong>WebRTC (DataChannel)</strong> untuk mengirimkan file secara langsung antar-browser tanpa server perantara. Berkas dikirim langsung lewat Wi-Fi/LAN lokal dengan kecepatan maksimal tanpa batas ukuran berkas.
             </p>
           </div>
         </div>
