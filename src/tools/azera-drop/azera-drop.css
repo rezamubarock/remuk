@@ -493,23 +493,107 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
+/* Wrapper and container overrides */
+.azera-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #08080f;
+}
+
+/* Mobile Tabs switcher */
+.azera-tabs-header {
+  display: none;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.azera-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.azera-tab-btn--active {
+  background: rgba(10, 132, 255, 0.12);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+/* Manual room override button */
+.azera-room-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--color-accent);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  width: 100%;
+  margin-top: 4px;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.azera-room-btn:hover {
+  background: rgba(10, 132, 255, 0.1);
+  border-color: var(--color-accent);
+}
+
 .animate-pulse {
   animation: pulseAvatar 1.5s ease-in-out infinite alternate;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .azera-tabs-header {
+    display: flex;
+  }
+
   .azera {
     flex-direction: column;
-    overflow-y: auto;
+    flex: 1;
+    overflow: hidden;
   }
-  .azera-left {
-    width: 100%;
+  
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
     border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: none;
   }
+  
   .azera-right {
-    height: 380px;
-    flex-shrink: 0;
+    height: auto;
+    flex: 1;
   }
+
+  .azera-radar-container {
+    width: 290px;
+    height: 290px;
+  }
+
+  /* Shrink concentric rings sizes on mobile to avoid overflow */
+  .ring--1 { width: 80px; height: 80px; }
+  .ring--2 { width: 150px; height: 150px; }
+  .ring--3 { width: 220px; height: 220px; }
+  .ring--4 { width: 290px; height: 290px; }
 }

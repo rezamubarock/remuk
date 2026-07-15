@@ -17,7 +17,6 @@ const playNotificationSound = () => {
     if (!AudioContext) return;
     const ctx = new AudioContext();
     
-    // Play double chime
     const playNote = (freq, time, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -91,56 +90,68 @@ const AzeraDrop = () => {
   
   // States
   const [networkKey, setNetworkKey] = useState('');
+  const [customRoomCode, setCustomRoomCode] = useState(() => localStorage.getItem('remuk_azera_room') || '');
   const [peers, setPeers] = useState([]);
   const [incomingTransfer, setIncomingTransfer] = useState(null);
   const [outgoingTransfer, setOutgoingTransfer] = useState(null);
+  const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'info' (for mobile layout)
   
   const fileInputRef = useRef(null);
   const selectedPeerRef = useRef(null);
 
   // Firestore helpers
   const getFirestoreHelpers = async () => {
-    const { doc, setDoc, deleteDoc, collection, onSnapshot } = await import('firebase/firestore');
-    return { doc, setDoc, deleteDoc, collection, onSnapshot };
+    const { doc, setDoc, getDoc, deleteField, onSnapshot } = await import('firebase/firestore');
+    return { doc, setDoc, getDoc, deleteField, onSnapshot };
   };
 
   // Get local network key (IP hash)
   useEffect(() => {
+    if (customRoomCode) {
+      setNetworkKey(`custom_${customRoomCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`);
+      return;
+    }
+
     const fetchNetKey = async () => {
       let ip = '127.0.0.1';
       try {
-        const res = await fetch('https://ipapi.co/json/');
+        // Use ipify explicitly to enforce IPv4 standard NAT address for identical hash rooms
+        const res = await fetch('https://api.ipify.org?format=json');
         const data = await res.json();
         if (data.ip) ip = data.ip;
       } catch (e) {
         try {
-          const res = await fetch('https://api64.ipify.org?format=json');
+          const res = await fetch('https://ipapi.co/json/');
           const data = await res.json();
           if (data.ip) ip = data.ip;
         } catch (err) {}
       }
       const hash = await sha256(ip);
-      setNetworkKey(`drop_${hash.substring(0, 16)}`);
+      setNetworkKey(`drop_${hash.substring(0, 12)}`);
     };
     fetchNetKey();
-  }, []);
+  }, [customRoomCode]);
 
-  // Update peer metadata heartbeat
+  // Update peer metadata heartbeat in Firestore (/notes/drop_peers_ROOM)
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey) return;
 
     let heartbeatInterval;
     const registerPeer = async () => {
       try {
-        const { doc, setDoc, deleteDoc } = await getFirestoreHelpers();
-        const peerRef = doc(firebaseService.db, 'azeradrop', networkKey, 'peers', peerId);
+        const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+        const docRef = doc(firebaseService.db, 'notes', `drop_peers_${networkKey}`);
         
         const updateHeartbeat = async () => {
-          await setDoc(peerRef, {
-            id: peerId,
-            name: myName,
-            avatar: myAvatar,
-            lastSeen: Date.now()
+          await setDoc(docRef, {
+            peers: {
+              [peerId]: {
+                id: peerId,
+                name: myName,
+                avatar: myAvatar,
+                lastSeen: Date.now()
+              }
+            }
           }, { merge: true });
         };
 
@@ -151,7 +162,11 @@ const AzeraDrop = () => {
         return async () => {
           clearInterval(heartbeatInterval);
           try {
-            await deleteDoc(peerRef);
+            await setDoc(docRef, {
+              peers: {
+                [peerId]: deleteField()
+              }
+            }, { merge: true });
           } catch (e) {}
         };
       } catch (e) {
@@ -169,7 +184,7 @@ const AzeraDrop = () => {
     };
   }, [isFirebaseReady, firebaseService, networkKey, peerId, myName, myAvatar]);
 
-  // Listen to peer list & incoming transfers
+  // Listen to peer list & incoming transfers in Firestore (/notes/drop_transfers_ROOM)
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey) return;
 
@@ -177,38 +192,47 @@ const AzeraDrop = () => {
     let unsubTransfers;
 
     const setupListeners = async () => {
-      const { collection, onSnapshot } = await getFirestoreHelpers();
+      const { doc, onSnapshot } = await getFirestoreHelpers();
 
-      // 1. Listen for active peers
-      const peersRef = collection(firebaseService.db, 'azeradrop', networkKey, 'peers');
-      unsubPeers = onSnapshot(peersRef, (snap) => {
-        const list = [];
-        snap.forEach((doc) => {
-          const data = doc.data();
-          // Filter out expired peers & self
-          if (data.id !== peerId && Date.now() - data.lastSeen < 12000) {
-            list.push(data);
-          }
-        });
-        setPeers(list);
+      // 1. Listen for active peers list
+      const peersDocRef = doc(firebaseService.db, 'notes', `drop_peers_${networkKey}`);
+      unsubPeers = onSnapshot(peersDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const peersMap = data.peers || {};
+          const list = [];
+          Object.keys(peersMap).forEach((id) => {
+            if (id !== peerId && Date.now() - peersMap[id].lastSeen < 12000) {
+              list.push(peersMap[id]);
+            }
+          });
+          setPeers(list);
+        } else {
+          setPeers([]);
+        }
       });
 
       // 2. Listen for transfers targeting me
-      const transfersRef = collection(firebaseService.db, 'azeradrop', networkKey, 'transfers');
-      unsubTransfers = onSnapshot(transfersRef, (snap) => {
-        snap.forEach((docSnap) => {
-          const trans = docSnap.data();
-          if (trans.receiverId === peerId) {
-            if (trans.status === 'pending') {
-              playNotificationSound();
-              setIncomingTransfer({ ...trans, docId: docSnap.id });
-            } else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
-              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
-            } else if (trans.status === 'declined' && outgoingTransfer?.id === trans.id) {
-              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+      const transfersDocRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+      unsubTransfers = onSnapshot(transfersDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const transfersMap = data.transfers || {};
+          
+          Object.keys(transfersMap).forEach((id) => {
+            const trans = transfersMap[id];
+            if (trans.receiverId === peerId) {
+              if (trans.status === 'pending') {
+                playNotificationSound();
+                setIncomingTransfer({ ...trans, docId: id });
+              } else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
+                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
+              } else if (trans.status === 'declined' && outgoingTransfer?.id === trans.id) {
+                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+              }
             }
-          }
-        });
+          });
+        }
       });
     };
 
@@ -227,15 +251,19 @@ const AzeraDrop = () => {
     let unsub;
     const listenOutgoing = async () => {
       const { doc, onSnapshot } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', outgoingTransfer.id);
+      const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
       unsub = onSnapshot(docRef, (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (data.status === 'accepted') {
-            setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
-          } else if (data.status === 'declined') {
-            setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+          const transfersMap = data.transfers || {};
+          const trans = transfersMap[outgoingTransfer.id];
+          if (trans) {
+            if (trans.status === 'accepted') {
+              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
+            } else if (trans.status === 'declined') {
+              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+            }
           }
         }
       });
@@ -275,7 +303,6 @@ const AzeraDrop = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Simulated initial progress upload
       const progTimer = setInterval(() => {
         setOutgoingTransfer((prev) => {
           if (prev && prev.status === 'uploading' && prev.progress < 90) {
@@ -300,22 +327,26 @@ const AzeraDrop = () => {
 
       setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'waiting' } : null);
 
-      // Write transaction request to Firestore
+      // Write transaction request to Firestore Doc
       const { doc, setDoc } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', transferId);
+      const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
       await setDoc(docRef, {
-        id: transferId,
-        senderId: peerId,
-        senderName: myName,
-        senderIcon: myAvatar,
-        receiverId: peer.id,
-        fileName: file.name,
-        fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-        downloadUrl,
-        status: 'pending',
-        createdAt: Date.now()
-      });
+        transfers: {
+          [transferId]: {
+            id: transferId,
+            senderId: peerId,
+            senderName: myName,
+            senderIcon: myAvatar,
+            receiverId: peer.id,
+            fileName: file.name,
+            fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+            downloadUrl,
+            status: 'pending',
+            createdAt: Date.now()
+          }
+        }
+      }, { merge: true });
 
     } catch (err) {
       console.error(err);
@@ -327,10 +358,18 @@ const AzeraDrop = () => {
   const handleAccept = async () => {
     if (!incomingTransfer || !firebaseService?.db) return;
     try {
-      const { doc, setDoc, deleteDoc } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', incomingTransfer.id);
-      await setDoc(docRef, { status: 'accepted' }, { merge: true });
+      const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+      const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+      
+      await setDoc(docRef, {
+        transfers: {
+          [incomingTransfer.docId]: {
+            status: 'accepted'
+          }
+        }
+      }, { merge: true });
 
+      // Automatically download the file
       const a = document.createElement('a');
       a.href = incomingTransfer.downloadUrl;
       a.download = incomingTransfer.fileName;
@@ -341,9 +380,14 @@ const AzeraDrop = () => {
 
       setIncomingTransfer(null);
 
+      // Clean up map key after short delay
       setTimeout(async () => {
         try {
-          await deleteDoc(docRef);
+          await setDoc(docRef, {
+            transfers: {
+              [incomingTransfer.docId]: deleteField()
+            }
+          }, { merge: true });
         } catch (e) {}
       }, 5000);
     } catch (e) {
@@ -355,15 +399,26 @@ const AzeraDrop = () => {
   const handleDecline = async () => {
     if (!incomingTransfer || !firebaseService?.db) return;
     try {
-      const { doc, setDoc, deleteDoc } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'azeradrop', networkKey, 'transfers', incomingTransfer.id);
-      await setDoc(docRef, { status: 'declined' }, { merge: true });
+      const { doc, setDoc, deleteField } = await getFirestoreHelpers();
+      const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+      
+      await setDoc(docRef, {
+        transfers: {
+          [incomingTransfer.docId]: {
+            status: 'declined'
+          }
+        }
+      }, { merge: true });
       
       setIncomingTransfer(null);
 
       setTimeout(async () => {
         try {
-          await deleteDoc(docRef);
+          await setDoc(docRef, {
+            transfers: {
+              [incomingTransfer.docId]: deleteField()
+            }
+          }, { merge: true });
         } catch (e) {}
       }, 5000);
     } catch (e) {
@@ -371,168 +426,204 @@ const AzeraDrop = () => {
     }
   };
 
+  const handleRoomConfig = () => {
+    const code = prompt("Masukkan Code Room Jaringan baru (misal: kosan123, wifiantigravity):", customRoomCode);
+    if (code !== null) {
+      const cleanCode = code.toLowerCase().trim();
+      setCustomRoomCode(cleanCode);
+      if (cleanCode) {
+        localStorage.setItem('remuk_azera_room', cleanCode);
+      } else {
+        localStorage.removeItem('remuk_azera_room');
+      }
+    }
+  };
+
   return (
-    <div className="azera">
-      {/* Invisible file input trigger */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        style={{ display: 'none' }} 
-      />
-
-      {/* Incoming Apple AirDrop Modal Overlay */}
-      {incomingTransfer && (
-        <div className="azera-dialog-overlay">
-          <div className="azera-dialog glass">
-            <div className="azera-dialog__avatar">
-              <span className="emoji">{incomingTransfer.senderIcon}</span>
-            </div>
-            <h4 className="azera-dialog__title">AzeraDrop</h4>
-            <p className="azera-dialog__desc">
-              <strong>{incomingTransfer.senderName}</strong> ingin mengirimkan berkas:
-            </p>
-            <div className="azera-dialog__file-box">
-              <span className="file-icon">📄</span>
-              <div className="file-details">
-                <span className="name" title={incomingTransfer.fileName}>{incomingTransfer.fileName}</span>
-                <span className="size">{incomingTransfer.fileSize}</span>
-              </div>
-            </div>
-            <div className="azera-dialog__buttons">
-              <button className="btn btn--decline" onClick={handleDecline}>Tolak</button>
-              <button className="btn btn--accept" onClick={handleAccept}>Terima</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Outgoing file upload / transfer status modal */}
-      {outgoingTransfer && (
-        <div className="azera-dialog-overlay">
-          <div className="azera-dialog glass">
-            <div className="azera-dialog__avatar animate-pulse">
-              <span className="emoji">{outgoingTransfer.peer.avatar}</span>
-            </div>
-            <h4 className="azera-dialog__title">Mengirim ke {outgoingTransfer.peer.name}</h4>
-            <p className="azera-dialog__desc">{outgoingTransfer.fileName}</p>
-            
-            {outgoingTransfer.status === 'uploading' && (
-              <div className="azera-progress">
-                <div className="azera-progress__bar">
-                  <div className="fill" style={{ width: `${outgoingTransfer.progress}%` }} />
-                </div>
-                <span>Mengunggah berkas... {outgoingTransfer.progress}%</span>
-              </div>
-            )}
-
-            {outgoingTransfer.status === 'waiting' && (
-              <div className="azera-status">
-                <div className="spinner-mini" />
-                <span>Menunggu persetujuan penerima...</span>
-              </div>
-            )}
-
-            {outgoingTransfer.status === 'completed' && (
-              <div className="azera-status success">
-                <span>🟢 Berkas diterima & diunduh!</span>
-                <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
-              </div>
-            )}
-
-            {outgoingTransfer.status === 'declined' && (
-              <div className="azera-status error">
-                <span>🔴 Pengiriman ditolak oleh penerima.</span>
-                <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
-              </div>
-            )}
-
-            {outgoingTransfer.status === 'error' && (
-              <div className="azera-status error">
-                <span>Gagal: {outgoingTransfer.error}</span>
-                <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Left panel: Profile Info (Automatic Device details) */}
-      <div className="azera-left glass">
-        <h4 className="azera-title">📡 Identitas Saya</h4>
-        <div className="azera-profile-static">
-          <span className="current-avatar current-avatar--static">{myAvatar}</span>
-          <div className="azera-profile-static__details">
-            <h3 className="name">{myName}</h3>
-            <span className="subtitle">Mendeteksi otomatis</span>
-          </div>
-        </div>
-
-        <div className="azera-info-box">
-          <div className="azera-info-row">
-            <span>Status:</span>
-            <span className="text-success">Siap Menerima</span>
-          </div>
-          <div className="azera-info-row">
-            <span>Room Jaringan:</span>
-            <span className="text-secondary" title={networkKey}>{networkKey ? networkKey.substring(0, 15) + '...' : 'Menghubungkan...'}</span>
-          </div>
-          <p className="note">
-            *AzeraDrop mendeteksi model browser & sistem operasi secara otomatis sebagai nama pengirim untuk mempermudah proses kirim.
-          </p>
-        </div>
+    <div className="azera-wrapper">
+      {/* Segmented control tab header for mobile view layout */}
+      <div className="azera-tabs-header">
+        <button 
+          className={`azera-tab-btn ${activeTab === 'radar' ? 'azera-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('radar')}
+        >
+          📡 Radar Radar
+        </button>
+        <button 
+          className={`azera-tab-btn ${activeTab === 'info' ? 'azera-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('info')}
+        >
+          ⚙️ Identitas & Room
+        </button>
       </div>
 
-      {/* Right panel: Animated Apple Radar for Peer Discovery */}
-      <div className="azera-right glass">
-        <div className="azera-radar-container">
-          {/* Radar Circles expanding ripple */}
-          <div className="radar-circle ring--1" />
-          <div className="radar-circle ring--2" />
-          <div className="radar-circle ring--3" />
-          <div className="radar-circle ring--4" />
+      <div className="azera">
+        {/* Invisible file input trigger */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          style={{ display: 'none' }} 
+        />
 
-          {/* Centered User Device */}
-          <div className="radar-center">
-            <div className="radar-center__avatar">
-              <span className="emoji">{myAvatar}</span>
-            </div>
-            <span className="radar-center__label">Saya</span>
-          </div>
-
-          {/* Discovered Peers floating around radar */}
-          {peers.map((peer, idx) => {
-            const angle = (idx * (360 / Math.max(1, peers.length)) * Math.PI) / 180;
-            const radius = 110 + (idx % 2 === 0 ? 0 : 25);
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-
-            return (
-              <button
-                key={peer.id}
-                onClick={() => handlePeerClick(peer)}
-                className="radar-peer"
-                style={{
-                  transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
-                }}
-              >
-                <div className="radar-peer__avatar">
-                  <span className="emoji">{peer.avatar}</span>
+        {/* Incoming Apple AirDrop Modal Overlay */}
+        {incomingTransfer && (
+          <div className="azera-dialog-overlay">
+            <div className="azera-dialog glass">
+              <div className="azera-dialog__avatar">
+                <span className="emoji">{incomingTransfer.senderIcon}</span>
+              </div>
+              <h4 className="azera-dialog__title">AzeraDrop</h4>
+              <p className="azera-dialog__desc">
+                <strong>{incomingTransfer.senderName}</strong> ingin mengirimkan berkas:
+              </p>
+              <div className="azera-dialog__file-box">
+                <span className="file-icon">📄</span>
+                <div className="file-details">
+                  <span className="name" title={incomingTransfer.fileName}>{incomingTransfer.fileName}</span>
+                  <span className="size">{incomingTransfer.fileSize}</span>
                 </div>
-                <span className="radar-peer__label">{peer.name}</span>
-                <span className="radar-peer__hint">Ketuk untuk kirim</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {peers.length === 0 && (
-          <div className="radar-searching">
-            <div className="spinner-radar" />
-            <p>Mencari perangkat lain di jaringan yang sama...</p>
-            <span>Buka halaman ini di HP/laptop lain yang menggunakan Wi-Fi yang sama untuk mentransfer berkas.</span>
+              </div>
+              <div className="azera-dialog__buttons">
+                <button className="btn btn--decline" onClick={handleDecline}>Tolak</button>
+                <button className="btn btn--accept" onClick={handleAccept}>Terima</button>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Outgoing file upload / transfer status modal */}
+        {outgoingTransfer && (
+          <div className="azera-dialog-overlay">
+            <div className="azera-dialog glass">
+              <div className="azera-dialog__avatar animate-pulse">
+                <span className="emoji">{outgoingTransfer.peer.avatar}</span>
+              </div>
+              <h4 className="azera-dialog__title">Mengirim ke {outgoingTransfer.peer.name}</h4>
+              <p className="azera-dialog__desc">{outgoingTransfer.fileName}</p>
+              
+              {outgoingTransfer.status === 'uploading' && (
+                <div className="azera-progress">
+                  <div className="azera-progress__bar">
+                    <div className="fill" style={{ width: `${outgoingTransfer.progress}%` }} />
+                  </div>
+                  <span>Mengunggah berkas... {outgoingTransfer.progress}%</span>
+                </div>
+              )}
+
+              {outgoingTransfer.status === 'waiting' && (
+                <div className="azera-status">
+                  <div className="spinner-mini" />
+                  <span>Menunggu persetujuan penerima...</span>
+                </div>
+              )}
+
+              {outgoingTransfer.status === 'completed' && (
+                <div className="azera-status success">
+                  <span>🟢 Berkas diterima & diunduh!</span>
+                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                </div>
+              )}
+
+              {outgoingTransfer.status === 'declined' && (
+                <div className="azera-status error">
+                  <span>🔴 Pengiriman ditolak oleh penerima.</span>
+                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                </div>
+              )}
+
+              {outgoingTransfer.status === 'error' && (
+                <div className="azera-status error">
+                  <span>Gagal: {outgoingTransfer.error}</span>
+                  <button onClick={() => setOutgoingTransfer(null)} className="btn btn--ok">Tutup</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Left panel: Profile Info (Automatic Device details) */}
+        <div className={`azera-left glass ${activeTab === 'info' ? 'show-mobile' : 'hide-mobile'}`}>
+          <h4 className="azera-title">📡 Identitas Saya</h4>
+          <div className="azera-profile-static">
+            <span className="current-avatar current-avatar--static">{myAvatar}</span>
+            <div className="azera-profile-static__details">
+              <h3 className="name">{myName}</h3>
+              <span className="subtitle">Mendeteksi otomatis</span>
+            </div>
+          </div>
+
+          <div className="azera-info-box">
+            <div className="azera-info-row">
+              <span>Status:</span>
+              <span className="text-success">Siap Menerima</span>
+            </div>
+            <div className="azera-info-row">
+              <span>Room Jaringan:</span>
+              <span className="text-secondary" title={networkKey}>{networkKey ? networkKey : 'Menghubungkan...'}</span>
+            </div>
+            
+            <button onClick={handleRoomConfig} className="azera-room-btn">
+              {customRoomCode ? '⚙️ Gunakan Room IP Wi-Fi' : '⚙️ Hubungkan Room Manual'}
+            </button>
+
+            <p className="note">
+              *Secara default, AzeraDrop menghubungkan perangkat pada jaringan Wi-Fi/IP publik yang sama. Jika perangkat tidak saling terdeteksi, klik <strong>Hubungkan Room Manual</strong> di atas lalu ketik kata/kunci yang sama pada kedua perangkat.
+            </p>
+          </div>
+        </div>
+
+        {/* Right panel: Animated Apple Radar for Peer Discovery */}
+        <div className={`azera-right glass ${activeTab === 'radar' ? 'show-mobile' : 'hide-mobile'}`}>
+          <div className="azera-radar-container">
+            {/* Radar Circles expanding ripple */}
+            <div className="radar-circle ring--1" />
+            <div className="radar-circle ring--2" />
+            <div className="radar-circle ring--3" />
+            <div className="radar-circle ring--4" />
+
+            {/* Centered User Device */}
+            <div className="radar-center">
+              <div className="radar-center__avatar">
+                <span className="emoji">{myAvatar}</span>
+              </div>
+              <span className="radar-center__label">Saya</span>
+            </div>
+
+            {/* Discovered Peers floating around radar */}
+            {peers.map((peer, idx) => {
+              const angle = (idx * (360 / Math.max(1, peers.length)) * Math.PI) / 180;
+              const radius = 110 + (idx % 2 === 0 ? 0 : 25);
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+
+              return (
+                <button
+                  key={peer.id}
+                  onClick={() => handlePeerClick(peer)}
+                  className="radar-peer"
+                  style={{
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+                  }}
+                >
+                  <div className="radar-peer__avatar">
+                    <span className="emoji">{peer.avatar}</span>
+                  </div>
+                  <span className="radar-peer__label">{peer.name}</span>
+                  <span className="radar-peer__hint">Ketuk untuk kirim</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {peers.length === 0 && (
+            <div className="radar-searching">
+              <div className="spinner-radar" />
+              <p>Mencari perangkat lain di jaringan yang sama...</p>
+              <span>Pastikan perangkat lain juga membuka tool AzeraDrop ini pada room yang sama: <strong>{networkKey}</strong>.</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
