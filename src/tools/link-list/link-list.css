@@ -180,85 +180,67 @@
   box-sizing: border-box;
 }
 
+/* Links Grid app drawer design */
 .ll-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 20px;
+  justify-items: center;
+  align-content: start;
 }
 
-/* Glass card design */
-.ll-card {
+/* App icon button wrapper */
+.ll-app-icon {
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.02) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-lg);
-  padding: 16px;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
   text-decoration: none;
-  color: inherit;
-  box-sizing: border-box;
-  transition: all var(--transition-fast);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: transform var(--transition-fast);
 }
 
-.ll-card:hover {
-  transform: translateY(-3px);
-  background: rgba(255,255,255,0.04) !important;
-  border-color: rgba(10, 132, 255, 0.3);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-}
-
-.ll-card__header {
+.ll-app-icon__box {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(255,255,255,0.05) inset;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
-.ll-card__header .emoji {
+.ll-app-icon__box span {
   font-size: 28px;
+  line-height: 1;
 }
 
-.ll-card__header .category-label {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: rgba(255,255,255,0.05);
-  padding: 2px 8px;
-  border-radius: 10px;
-  color: var(--text-tertiary);
-}
-
-.ll-card__title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 6px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ll-card__desc {
+.ll-app-icon__label {
   font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  margin: 0 0 12px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  height: 30px;
-}
-
-.ll-card__url {
-  font-size: 10px;
-  color: var(--color-accent);
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+  max-width: 76px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: auto;
+}
+
+.ll-app-icon:hover .ll-app-icon__box {
+  transform: scale(1.08);
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.35);
+  box-shadow: 0 0 15px rgba(10, 132, 255, 0.3);
+}
+
+.ll-app-icon:active .ll-app-icon__box {
+  transform: scale(0.95);
 }
 
 .ll-empty {

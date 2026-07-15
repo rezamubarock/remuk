@@ -93,6 +93,18 @@ const LinkList = () => {
     };
   }, [isFirebaseReady, firebaseService]);
 
+  // Auto-select first category if selected is 'all' or no longer exists
+  useEffect(() => {
+    if (categories.length > 0) {
+      setSelectedCatId((prev) => {
+        if (prev === 'all' || !categories.some((c) => c.id === prev)) {
+          return categories[0].id;
+        }
+        return prev;
+      });
+    }
+  }, [categories]);
+
   const saveToFirestore = async (cats, lks) => {
     if (!isFirebaseReady || !firebaseService?.db) return;
     try {
@@ -284,15 +296,6 @@ const LinkList = () => {
         <div className="ll-body">
           {/* Categories Sidebar */}
           <div className="ll-sidebar glass">
-            <button
-              onClick={() => setSelectedCatId('all')}
-              className={`ll-cat-item ${selectedCatId === 'all' ? 'll-cat-item--active' : ''}`}
-            >
-              <span className="icon">📂</span>
-              <span className="name">Semua Bookmark</span>
-              <span className="badge">{links.length}</span>
-            </button>
-
             {categories.map((cat) => (
               <button
                 key={cat.id}
@@ -315,17 +318,13 @@ const LinkList = () => {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ll-card glass"
+                  className="ll-app-icon"
+                  title={`${link.title}\n${link.desc}`}
                 >
-                  <div className="ll-card__header">
-                    <span className="emoji">{link.icon}</span>
-                    <span className="category-label">
-                      {categories.find((c) => c.id === link.catId)?.name || 'Kategori'}
-                    </span>
+                  <div className="ll-app-icon__box">
+                    <span>{link.icon}</span>
                   </div>
-                  <h4 className="ll-card__title">{link.title}</h4>
-                  <p className="ll-card__desc">{link.desc}</p>
-                  <span className="ll-card__url">{link.url.replace(/^https?:\/\/(www\.)?/i, '')}</span>
+                  <span className="ll-app-icon__label">{link.title}</span>
                 </a>
               ))}
 

@@ -258,7 +258,7 @@
 /* ─── Home Screen ─── */
 .homescreen {
   position: fixed;
-  top: 44px;
+  top: 20px;
   left: 0;
   right: 0;
   bottom: 80px;
@@ -394,7 +394,7 @@
 .app-sheet__header {
   display: flex;
   align-items: center;
-  padding: 50px var(--space-4) var(--space-4);
+  padding: 16px var(--space-4) var(--space-4);
   gap: var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
