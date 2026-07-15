@@ -5,6 +5,24 @@ import { useStore } from './core/store';
 import { useService } from './core/hooks/useService';
 import { getToolById } from './core/registry';
 
+const getFingerprint = async () => {
+  const parts = [
+    navigator.userAgent,
+    screen.width,
+    screen.height,
+    screen.colorDepth,
+    navigator.language,
+    navigator.hardwareConcurrency || 4,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.platform
+  ];
+  const fpString = parts.join('|');
+  const utf8 = new TextEncoder().encode(fpString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return 'fp-' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').substring(0, 24);
+};
+
 const App = () => {
   const openApp = useStore((s) => s.openApp);
   const setAppPlacements = useStore((s) => s.setAppPlacements);
@@ -83,11 +101,22 @@ const App = () => {
     if (isFirebaseReady && firebaseService?.db && isLocked) {
       const checkAutoUnlock = async () => {
         try {
-          // Get or generate unique device ID
-          let deviceId = localStorage.getItem('remuk_device_id');
-          if (!deviceId) {
-            deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
-            localStorage.setItem('remuk_device_id', deviceId);
+          let deviceId = '';
+          try {
+            deviceId = localStorage.getItem('remuk_device_id');
+            if (!deviceId) {
+              deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+              localStorage.setItem('remuk_device_id', deviceId);
+            }
+          } catch (storageErr) {
+            console.warn('localStorage not accessible for auto-unlock:', storageErr);
+          }
+
+          let fingerprint = '';
+          try {
+            fingerprint = await getFingerprint();
+          } catch (fpErr) {
+            console.error('Failed to generate fingerprint for auto-unlock:', fpErr);
           }
           
           const { doc, getDoc } = await import('firebase/firestore');
@@ -96,7 +125,12 @@ const App = () => {
           
           if (snap.exists()) {
             const docData = snap.data();
-            if (docData.unlockedDevices && docData.unlockedDevices[deviceId] === true) {
+            const unlocked = docData.unlockedDevices || {};
+            
+            const isDeviceUnlocked = !!(deviceId && unlocked[deviceId] === true);
+            const isFingerprintUnlocked = !!(fingerprint && unlocked[fingerprint] === true);
+            
+            if (isDeviceUnlocked || isFingerprintUnlocked) {
               sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
               setIsLocked(false);
             }

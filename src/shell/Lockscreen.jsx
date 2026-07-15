@@ -12,12 +12,32 @@ const sha256 = async (string) => {
   return hashHex;
 };
 
+const getFingerprint = async () => {
+  const parts = [
+    navigator.userAgent,
+    screen.width,
+    screen.height,
+    screen.colorDepth,
+    navigator.language,
+    navigator.hardwareConcurrency || 4,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.platform
+  ];
+  const fpString = parts.join('|');
+  const utf8 = new TextEncoder().encode(fpString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return 'fp-' + hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').substring(0, 24);
+};
+
 const Lockscreen = ({ onUnlock, firebaseService }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [time, setTime] = useState('');
-  const [date, setDate] = useState('');
+  const time = useRef('');
+  const date = useRef('');
+  const [timeStr, setTimeStr] = useState('');
+  const [dateStr, setDateStr] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -28,8 +48,8 @@ const Lockscreen = ({ onUnlock, firebaseService }) => {
 
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-      setDate(now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }));
+      setTimeStr(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+      setDateStr(now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }));
     };
 
     updateTime();
@@ -49,21 +69,41 @@ const Lockscreen = ({ onUnlock, firebaseService }) => {
       if (inputHash === HASH_TARGET) {
         sessionStorage.setItem('remuk_lockscreen_unlocked', 'true');
         
-        // Save unique device ID to Firestore to bypass on future entries
+        // Save unique device ID & fingerprint to Firestore to bypass on future entries
         if (firebaseService?.db) {
           try {
-            let deviceId = localStorage.getItem('remuk_device_id');
-            if (!deviceId) {
-              deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
-              localStorage.setItem('remuk_device_id', deviceId);
+            let deviceId = '';
+            try {
+              deviceId = localStorage.getItem('remuk_device_id');
+              if (!deviceId) {
+                deviceId = `dev-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`;
+                localStorage.setItem('remuk_device_id', deviceId);
+              }
+            } catch (storageErr) {
+              console.warn('localStorage not accessible on submit:', storageErr);
+            }
+
+            let fingerprint = '';
+            try {
+              fingerprint = await getFingerprint();
+            } catch (fpErr) {
+              console.error('Failed to generate fingerprint on submit:', fpErr);
             }
 
             const { doc, setDoc } = await import('firebase/firestore');
             const docRef = doc(firebaseService.db, 'notes', 'lockscreen_unlocked_devices');
+            
+            const updates = {};
+            if (deviceId) updates[deviceId] = true;
+            if (fingerprint) updates[fingerprint] = true;
+
             await setDoc(docRef, {
-              unlockedDevices: {
-                [deviceId]: true
-              }
+              unlockedDevices: updates
+            }, { merge: mergeObject => mergeObject || {} }); // custom merge or standard merge: true
+            
+            // Standard setDoc with merge: true is safest:
+            await setDoc(docRef, {
+              unlockedDevices: updates
             }, { merge: true });
           } catch (devErr) {
             console.error('Failed to log device ID for auto-unlock:', devErr);
@@ -93,8 +133,8 @@ const Lockscreen = ({ onUnlock, firebaseService }) => {
       <div className="lockscreen__content">
         {/* Floating Clock */}
         <div className="lockscreen__clock-container">
-          <h1 className="lockscreen__time">{time}</h1>
-          <p className="lockscreen__date">{date}</p>
+          <h1 className="lockscreen__time">{timeStr}</h1>
+          <p className="lockscreen__date">{dateStr}</p>
         </div>
 
         {/* User login card */}
