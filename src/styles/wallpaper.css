@@ -72,3 +72,135 @@
   50% { transform: translate(-60px, -50px) scale(0.95); }
   100% { transform: translate(50px, 60px) scale(1.05); }
 }
+
+/* ─── Wallpaper Centered Content ─── */
+.wallpaper-info {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.wallpaper-sugeh {
+  font-family: var(--font-sans);
+  font-size: 3.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 0 0 24px 0;
+  background: linear-gradient(135deg, #FFD60A, #FF9F0A, #FF453A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 20px rgba(255, 159, 10, 0.2);
+  text-align: center;
+  animation: sugehPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes sugehPulse {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+.wallpaper-diag {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(10, 10, 20, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  font-family: 'Consolas', 'Courier New', Courier, monospace;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.wallpaper-diag__header {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wallpaper-diag__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-alt);
+  box-shadow: 0 0 8px var(--color-accent-alt);
+}
+
+.wallpaper-diag__title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+}
+
+.wallpaper-diag__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.wallpaper-diag__row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+  padding-bottom: 4px;
+}
+
+.wallpaper-diag__row .label {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.wallpaper-diag__row .val {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-all;
+}
+
+.wallpaper-diag__row--ua {
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: none;
+}
+
+.wallpaper-diag__row--ua .val--ua {
+  text-align: left;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  word-break: break-all;
+  white-space: normal;
+}
+
+@media (max-width: 768px) {
+  .wallpaper-sugeh {
+    font-size: 2.2rem;
+    margin-bottom: 16px;
+  }
+  .wallpaper-diag {
+    max-width: 100%;
+  }
+  .wallpaper-diag__body {
+    font-size: 10px;
+    padding: 12px;
+  }
+}

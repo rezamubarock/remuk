@@ -29,13 +29,86 @@ const WALLPAPER_STYLES = [
   }
 ];
 
+const parseUA = (ua) => {
+  let browser = "Browser Umum";
+  let os = "OS Tidak Diketahui";
+
+  if (/chrome|crios/i.test(ua) && !/edge|edg/i.test(ua) && !/opr/i.test(ua)) {
+    browser = "Google Chrome";
+  } else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) {
+    browser = "Apple Safari";
+  } else if (/firefox|fxios/i.test(ua)) {
+    browser = "Mozilla Firefox";
+  } else if (/edge|edg/i.test(ua)) {
+    browser = "Microsoft Edge";
+  } else if (/opr/i.test(ua)) {
+    browser = "Opera";
+  }
+
+  if (/windows/i.test(ua)) {
+    os = "Windows OS";
+  } else if (/macintosh|mac os/i.test(ua)) {
+    os = "macOS";
+  } else if (/iphone|ipad|ipod/i.test(ua)) {
+    os = "Apple iOS";
+  } else if (/android/i.test(ua)) {
+    os = "Android OS";
+  } else if (/linux/i.test(ua)) {
+    os = "Linux";
+  }
+
+  return { browser, os };
+};
+
 const Wallpaper = () => {
   const [styleIndex, setStyleIndex] = useState(0);
+  const [ipData, setIpData] = useState({
+    ip: 'Mencari...',
+    city: 'Mencari...',
+    region: 'Mencari...',
+    country: 'Mencari...',
+    org: 'Mencari...'
+  });
+  const [uaInfo, setUaInfo] = useState({ browser: 'Mendeteksi...', os: 'Mendeteksi...' });
+  const [screenRes, setScreenRes] = useState('');
+  const [timezone, setTimezone] = useState('');
+  const [cores, setCores] = useState('...');
+  const [netType, setNetType] = useState('...');
 
   useEffect(() => {
     // Pick random index on refresh
     const rand = Math.floor(Math.random() * WALLPAPER_STYLES.length);
     setStyleIndex(rand);
+
+    // Get local device info
+    const ua = navigator.userAgent;
+    setUaInfo(parseUA(ua));
+    setScreenRes(`${window.innerWidth} × ${window.innerHeight} (DPR: ${window.devicePixelRatio || 1})`);
+    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta');
+    setCores(navigator.hardwareConcurrency || 'Tidak diketahui');
+    setNetType(navigator.connection?.effectiveType || 'N/A');
+
+    // Fetch IP and Geo fingerprint info
+    fetch('https://ipapi.co/json/')
+      .then((res) => res.json())
+      .then((data) => {
+        setIpData({
+          ip: data.ip || 'N/A',
+          city: data.city || 'N/A',
+          region: data.region || 'N/A',
+          country: data.country_name || 'N/A',
+          org: data.org || 'N/A'
+        });
+      })
+      .catch(() => {
+        setIpData({
+          ip: 'Terblokir / Offline',
+          city: 'N/A',
+          region: 'N/A',
+          country: 'N/A',
+          org: 'N/A'
+        });
+      });
   }, []);
 
   const selected = WALLPAPER_STYLES[styleIndex];
@@ -76,6 +149,56 @@ const Wallpaper = () => {
       {/* Interactive premium blur blobs */}
       <div className="wallpaper__glow-blob wallpaper__glow-blob--1" />
       <div className="wallpaper__glow-blob wallpaper__glow-blob--2" />
+
+      {/* Centered Allahumma Sugeh & Diagnostics Gutter */}
+      <div className="wallpaper-info">
+        <h2 className="wallpaper-sugeh">Allahumma Sugeh</h2>
+        
+        <div className="wallpaper-diag glass">
+          <div className="wallpaper-diag__header">
+            <span className="wallpaper-diag__dot" />
+            <span className="wallpaper-diag__title">DEVICE FINGERPRINT</span>
+          </div>
+          <div className="wallpaper-diag__body">
+            <div className="wallpaper-diag__row">
+              <span className="label">IP ADDRESS:</span> 
+              <span className="val">{ipData.ip}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">LOCATION:</span> 
+              <span className="val">{ipData.city}, {ipData.region}, {ipData.country}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">PROVIDER/ISP:</span> 
+              <span className="val">{ipData.org}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">BROWSER:</span> 
+              <span className="val">{uaInfo.browser}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">OPERATING SYSTEM:</span> 
+              <span className="val">{uaInfo.os}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">WINDOW SIZE:</span> 
+              <span className="val">{screenRes}</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">CORES / SPEED:</span> 
+              <span className="val">{cores} CPU Cores / {netType} conn</span>
+            </div>
+            <div className="wallpaper-diag__row">
+              <span className="label">LOCALE / ZONE:</span> 
+              <span className="val">{navigator.language} / {timezone}</span>
+            </div>
+            <div className="wallpaper-diag__row wallpaper-diag__row--ua">
+              <span className="label">USER AGENT:</span> 
+              <span className="val val--ua">{navigator.userAgent}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

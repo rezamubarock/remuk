@@ -11,7 +11,7 @@ const DEFAULT_POSITION_OFFSET = 30;
  * Hitung posisi window baru agar cascade (bertumpuk rapi)
  */
 const calculateInitialPosition = (existingWindows, defaultSize) => {
-  const menubarHeight = 28;
+  const menubarHeight = 10;
   const dockHeight = 90;
   const margin = 40;
 
@@ -226,7 +226,7 @@ export const useStore = create(
        * Snap window ke kiri atau kanan (split view)
        */
       snapWindow: (windowId, side) => {
-        const menubarHeight = 28;
+        const menubarHeight = 0;
         const dockHeight = 90;
         const w = window.innerWidth / 2;
         const h = window.innerHeight - menubarHeight - dockHeight;
@@ -237,7 +237,7 @@ export const useStore = create(
               ? {
                   ...win,
                   maximized: false,
-                  position: { x: side === 'left' ? 0 : w, y: menubarHeight },
+                  position: { x: side === 'left' ? 0 : w, y: 0 },
                   size: { width: w, height: h },
                 }
               : win

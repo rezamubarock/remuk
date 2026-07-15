@@ -34,6 +34,7 @@ const Window = ({ win }) => {
     snapWindow,
     setSnapIndicator,
     activeWindowId,
+    openTool,
   } = useWindowManager();
 
   const windowRef = useRef(null);
@@ -60,7 +61,7 @@ const Window = ({ win }) => {
 
       const onMouseMove = (ev) => {
         const x = ev.clientX - dragState.current.startX;
-        const y = Math.max(28, ev.clientY - dragState.current.startY); // can't go above menubar
+        const y = Math.max(0, ev.clientY - dragState.current.startY); // no menubar constraint
 
         updateWindowPosition(win.id, { x, y });
 

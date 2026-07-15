@@ -22,6 +22,7 @@ const Notepad = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Settings & forms
   const [inputKey, setInputKey] = useState('');
@@ -348,7 +349,7 @@ const Notepad = () => {
       )}
 
       {/* Sidebar List */}
-      <div className="np-sidebar">
+      <div className={`np-sidebar ${isSidebarOpen ? 'np-sidebar--open' : ''}`}>
         <div className="np-sidebar__header">
           <button className="np-btn np-btn--ghost" onClick={() => setShowSettings(true)} title="Sinkronisasi Cloud">
             {syncStatus === 'local' && <span className="np-status-icon">☁️ Offline</span>}
@@ -366,7 +367,10 @@ const Notepad = () => {
             <div
               key={n.id}
               className={`np-note-item ${activeNoteId === n.id ? 'np-note-item--active' : ''}`}
-              onClick={() => setActiveNoteId(n.id)}
+              onClick={() => {
+                setActiveNoteId(n.id);
+                setIsSidebarOpen(false); // Close sidebar on mobile
+              }}
             >
               <div className="np-note-item__header">
                 <h4 className="np-note-item__title">{n.title || 'Tanpa Judul'}</h4>
@@ -401,6 +405,13 @@ const Notepad = () => {
           <>
             {/* Notepad++ Document Tab bar */}
             <div className="npp-tabs">
+              <button 
+                className="npp-sidebar-toggle"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                title="Daftar Catatan"
+              >
+                ☰
+              </button>
               <div className="npp-tab npp-tab--active">
                 <span className="npp-tab__icon">📝</span>
                 <input

@@ -1,6 +1,5 @@
 import React from 'react';
 import Wallpaper from '../Wallpaper';
-import MenuBar from './MenuBar';
 import Dock from './Dock';
 import WindowLayer from '@components/Window';
 import NotificationCenter from '@components/Notification';
@@ -12,8 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Launchpad from './Launchpad';
 
 const Desktop = () => {
-  const { focusedWindow, openTool } = useWindowManager();
-  const launchpadOpen = useStore((s) => s.launchpadOpen);
+  const { openTool } = useWindowManager();
   const folders = useStore((s) => s.folders) || [];
   const appPlacements = useStore((s) => s.appPlacements);
   const appOrder = useStore((s) => s.appOrder) || [];
@@ -69,13 +67,12 @@ const Desktop = () => {
     });
   };
 
+  const launchpadOpen = useStore((s) => s.launchpadOpen);
+
   return (
     <div className="desktop">
       {/* Background */}
       <Wallpaper />
-
-      {/* Menu Bar */}
-      <MenuBar activeWindowTitle={focusedWindow?.title} />
 
       {/* Desktop Workspace */}
       <div className="desktop__workspace">

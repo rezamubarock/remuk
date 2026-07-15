@@ -207,3 +207,26 @@
   color: #fff;
   transform: scale(1.1) rotate(180deg);
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .tt-editor {
+    flex-direction: column;
+  }
+  
+  .tt-swap {
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: var(--space-2) 0;
+  }
+  
+  .tt-swap__btn {
+    transform: rotate(90deg);
+  }
+  
+  .tt-swap__btn:hover {
+    transform: scale(1.1) rotate(270deg);
+  }
+}
