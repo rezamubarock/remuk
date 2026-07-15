@@ -153,6 +153,21 @@ export const TOOLS = [
     singleton: true,
     services: ['firebase-firestore'],
   },
+  {
+    id: 'link-list',
+    name: 'LinkList',
+    icon: '🔗',
+    description: 'Bookmark manager interaktif yang tersinkronisasi realtime di cloud',
+    category: 'produktivitas',
+    color: '#FF9F0A',
+    colorAlt: '#FF375F',
+    component: lazy(() => import('../tools/link-list')),
+    defaultSize: { width: 740, height: 500 },
+    minSize: { width: 500, height: 420 },
+    resizable: true,
+    singleton: true,
+    services: ['firebase-firestore'],
+  },
 ];
 
 /**
