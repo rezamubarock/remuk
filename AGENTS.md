@@ -82,6 +82,9 @@ remuk/
 │   │   └── redraw/
 │   │       ├── index.jsx              # Kanvas coretan kolaboratif real-time lokal
 │   │       └── redraw.css             # Scoped CSS untuk kanvas coretan
+│   │   └── link-list/
+│   │       ├── index.jsx              # Bookmark manager: kategori, CRUD links (password: rausyani)
+│   │       └── link-list.css          # Scoped CSS untuk bookmark manager
 │   │
 │   └── styles/
 │       ├── globals.css                # CSS variables, reset, utilities (.glass, scrollbar)
@@ -367,6 +370,7 @@ Di Cloudflare Pages dashboard, set environment variables yang sama tanpa prefix 
 | Sistem & Sensor | ✅ Done | — |
 | AzeraDrop | ✅ Done | firebase-firestore |
 | ReDraw | ✅ Done | firebase-firestore |
+| LinkList | ✅ Done | firebase-firestore |
 | Email Sementara | 🔜 Planned | cloudflare-worker |
 | Kalkulator | 🔜 Planned | — |
 | Pemilih Warna | 🔜 Planned | — |
