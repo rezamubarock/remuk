@@ -13,18 +13,56 @@ const sha256 = async (string) => {
   return hashHex;
 };
 
-// Helper function to generate default table structure
+// Helper function to generate default table structure (cells array inside row object)
 const createDefaultTable = () => ({
   id: `tbl-${Date.now()}`,
   title: 'Tabel 1',
   columns: ['Kolom A', 'Kolom B', 'Kolom C'],
   rows: [
-    ['', '', ''],
-    ['', '', ''],
-    ['', '', ''],
+    { id: `r-${Date.now()}-1`, cells: ['', '', ''] },
+    { id: `r-${Date.now()}-2`, cells: ['', '', ''] },
+    { id: `r-${Date.now()}-3`, cells: ['', '', ''] },
   ],
   updatedAt: Date.now(),
 });
+
+// Helper to normalize table data to avoid Firestore 2D nested array error
+const normalizeTables = (rawTables) => {
+  if (!Array.isArray(rawTables) || rawTables.length === 0) {
+    return [createDefaultTable()];
+  }
+  return rawTables.map((t, tIdx) => {
+    const cols = Array.isArray(t.columns) && t.columns.length > 0 ? t.columns : ['Kolom A', 'Kolom B', 'Kolom C'];
+    const rawRows = Array.isArray(t.rows) ? t.rows : [];
+    const normalizedRows = rawRows.map((r, rIdx) => {
+      if (Array.isArray(r)) {
+        // Convert legacy 2D array element to row object
+        return {
+          id: `r-${rIdx}-${Date.now()}`,
+          cells: cols.map((_, cIdx) => (r[cIdx] == null ? '' : String(r[cIdx]))),
+        };
+      }
+      if (r && typeof r === 'object' && Array.isArray(r.cells)) {
+        return {
+          id: r.id || `r-${rIdx}-${Date.now()}`,
+          cells: cols.map((_, cIdx) => (r.cells[cIdx] == null ? '' : String(r.cells[cIdx]))),
+        };
+      }
+      return {
+        id: `r-${rIdx}-${Date.now()}`,
+        cells: new Array(cols.length).fill(''),
+      };
+    });
+
+    return {
+      id: t.id || `tbl-${tIdx}-${Date.now()}`,
+      title: t.title || `Tabel ${tIdx + 1}`,
+      columns: cols,
+      rows: normalizedRows.length > 0 ? normalizedRows : [{ id: `r-0-${Date.now()}`, cells: new Array(cols.length).fill('') }],
+      updatedAt: t.updatedAt || Date.now(),
+    };
+  });
+};
 
 const TableNotepad = () => {
   // ─── Firebase hook ───
@@ -68,13 +106,10 @@ const TableNotepad = () => {
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTables(parsed);
-          setActiveTableId(parsed[0].id);
-        } else {
-          const initial = [createDefaultTable()];
-          setTables(initial);
-          setActiveTableId(initial[0].id);
+        const normalized = normalizeTables(parsed);
+        setTables(normalized);
+        if (normalized.length > 0) {
+          setActiveTableId(normalized[0].id);
         }
       } catch (e) {
         console.error('Failed to parse local table notes', e);
@@ -138,7 +173,7 @@ const TableNotepad = () => {
 
       if (!docSnap.exists()) {
         if (isAutoLocal || key.startsWith('tbl_local_') || key.startsWith('local_')) {
-          const initialTables = tablesStateRef.current.length > 0 ? tablesStateRef.current : [createDefaultTable()];
+          const initialTables = normalizeTables(tablesStateRef.current);
           await setDoc(docRef, { tables: initialTables });
         } else {
           setPendingKey(key);
@@ -148,9 +183,9 @@ const TableNotepad = () => {
         }
       } else {
         const data = docSnap.data();
-        const remoteTables = data.tables || [];
+        const remoteTables = normalizeTables(data.tables);
         if (remoteTables.length === 0 && tablesStateRef.current.length > 0 && (isAutoLocal || key.startsWith('tbl_local_') || key.startsWith('local_'))) {
-          await setDoc(docRef, { tables: tablesStateRef.current });
+          await setDoc(docRef, { tables: normalizeTables(tablesStateRef.current) });
         }
       }
 
@@ -159,7 +194,7 @@ const TableNotepad = () => {
       unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          const remoteTables = data.tables || [];
+          const remoteTables = normalizeTables(data.tables);
           setTables(remoteTables);
           setSyncStatus('synced');
           setIsConnected(true);
@@ -232,9 +267,7 @@ const TableNotepad = () => {
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = getDocRef(firebaseService.db, doc, pendingKey);
 
-        const initialTables = tablesStateRef.current.length > 0
-          ? tablesStateRef.current
-          : [createDefaultTable()];
+        const initialTables = normalizeTables(tablesStateRef.current);
 
         await setDoc(docRef, { tables: initialTables });
 
@@ -265,8 +298,9 @@ const TableNotepad = () => {
 
   // ─── Save logic (Local vs Cloud with 3s Debounce) ───
   const triggerSave = useCallback((updatedTables) => {
-    setTables(updatedTables);
-    localStorage.setItem('remuk_table_notepad_local_tables', JSON.stringify(updatedTables));
+    const normalized = normalizeTables(updatedTables);
+    setTables(normalized);
+    localStorage.setItem('remuk_table_notepad_local_tables', JSON.stringify(normalized));
 
     const targetKey = syncKey || localNetKey;
 
@@ -279,7 +313,7 @@ const TableNotepad = () => {
         try {
           const { doc, setDoc } = await getFirestoreHelpers();
           const docRef = getDocRef(firebaseService.db, doc, targetKey);
-          await setDoc(docRef, { tables: updatedTables });
+          await setDoc(docRef, { tables: normalized });
           setSyncStatus('synced');
         } catch (e) {
           console.error('Failed to autosave to Firestore:', e);
@@ -298,8 +332,8 @@ const TableNotepad = () => {
       title: `Tabel ${tables.length + 1}`,
       columns: ['Kolom A', 'Kolom B', 'Kolom C'],
       rows: [
-        ['', '', ''],
-        ['', '', ''],
+        { id: `r-${Date.now()}-1`, cells: ['', '', ''] },
+        { id: `r-${Date.now()}-2`, cells: ['', '', ''] },
       ],
       updatedAt: Date.now(),
     };
@@ -336,7 +370,7 @@ const TableNotepad = () => {
 
   const handleAddRow = () => {
     updateActiveTable((t) => {
-      const newRow = new Array(t.columns.length).fill('');
+      const newRow = { id: `r-${Date.now()}-${Math.random()}`, cells: new Array(t.columns.length).fill('') };
       return { ...t, rows: [...t.rows, newRow], updatedAt: Date.now() };
     });
   };
@@ -353,7 +387,7 @@ const TableNotepad = () => {
       const colLetter = String.fromCharCode(65 + (t.columns.length % 26));
       const colName = `Kolom ${colLetter}`;
       const newCols = [...t.columns, colName];
-      const newRows = t.rows.map((row) => [...row, '']);
+      const newRows = t.rows.map((row) => ({ ...row, cells: [...row.cells, ''] }));
       return { ...t, columns: newCols, rows: newRows, updatedAt: Date.now() };
     });
   };
@@ -362,7 +396,10 @@ const TableNotepad = () => {
     updateActiveTable((t) => {
       if (t.columns.length <= 1) return t; // prevent deleting last column
       const newCols = t.columns.filter((_, idx) => idx !== colIndex);
-      const newRows = t.rows.map((row) => row.filter((_, idx) => idx !== colIndex));
+      const newRows = t.rows.map((row) => ({
+        ...row,
+        cells: row.cells.filter((_, idx) => idx !== colIndex),
+      }));
       return { ...t, columns: newCols, rows: newRows, updatedAt: Date.now() };
     });
   };
@@ -379,9 +416,9 @@ const TableNotepad = () => {
     updateActiveTable((t) => {
       const newRows = t.rows.map((row, rIdx) => {
         if (rIdx === rowIndex) {
-          const updatedRow = [...row];
-          updatedRow[colIndex] = val;
-          return updatedRow;
+          const updatedCells = [...row.cells];
+          updatedCells[colIndex] = val;
+          return { ...row, cells: updatedCells };
         }
         return row;
       });
@@ -399,7 +436,6 @@ const TableNotepad = () => {
       if (nextInput) {
         nextInput.focus();
       } else {
-        // Automatically add new row if pressing enter at the last cell row
         handleAddRow();
         setTimeout(() => {
           const newlyCreatedInput = document.querySelector(`input[data-cell="${rIdx + 1}-${cIdx}"]`);
@@ -420,7 +456,7 @@ const TableNotepad = () => {
     if (!activeTable) return;
     const headerRow = activeTable.columns.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(',');
     const bodyRows = activeTable.rows.map((r) =>
-      r.map((cell) => `"${(cell || '').replace(/"/g, '""')}"`).join(',')
+      (r.cells || []).map((cell) => `"${(cell || '').replace(/"/g, '""')}"`).join(',')
     );
     const csvContent = [headerRow, ...bodyRows].join('\n');
 
@@ -449,18 +485,20 @@ const TableNotepad = () => {
         };
 
         const columns = parseLine(lines[0]);
-        const rows = lines.slice(1).map((line) => {
+        const rows = lines.slice(1).map((line, rIdx) => {
           const parsed = parseLine(line);
-          // pad or truncate row to match column count
           while (parsed.length < columns.length) parsed.push('');
-          return parsed.slice(0, columns.length);
+          return {
+            id: `r-${Date.now()}-${rIdx}`,
+            cells: parsed.slice(0, columns.length),
+          };
         });
 
         const newTable = {
           id: `tbl-${Date.now()}`,
           title: file.name.replace(/\.[^/.]+$/, ''),
           columns: columns.length > 0 ? columns : ['Kolom A'],
-          rows: rows.length > 0 ? rows : [new Array(columns.length || 1).fill('')],
+          rows: rows.length > 0 ? rows : [{ id: `r-0-${Date.now()}`, cells: new Array(columns.length || 1).fill('') }],
           updatedAt: Date.now(),
         };
 
@@ -470,7 +508,7 @@ const TableNotepad = () => {
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; // reset file input
+    e.target.value = '';
   };
 
   return (
@@ -707,8 +745,8 @@ const TableNotepad = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeTable.rows.map((row, rIdx) => (
-                    <tr key={rIdx} className="tnp-tr">
+                  {(activeTable.rows || []).map((rowObj, rIdx) => (
+                    <tr key={rowObj.id || rIdx} className="tnp-tr">
                       <td className="tnp-td tnp-td--index">
                         <button
                           className="tnp-row-delete"
@@ -719,17 +757,17 @@ const TableNotepad = () => {
                         </button>
                         <span>{rIdx + 1}</span>
                       </td>
-                      {row.map((cellValue, cIdx) => {
+                      {(rowObj.cells || []).map((cellValue, cIdx) => {
                         const isMatch =
                           searchQuery.trim() !== '' &&
-                          cellValue.toLowerCase().includes(searchQuery.toLowerCase());
+                          (cellValue || '').toLowerCase().includes(searchQuery.toLowerCase());
 
                         return (
                           <td key={cIdx} className="tnp-td">
                             <input
                               type="text"
                               data-cell={`${rIdx}-${cIdx}`}
-                              value={cellValue}
+                              value={cellValue || ''}
                               onChange={(e) => handleUpdateCell(rIdx, cIdx, e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
                               className={`tnp-cell-input ${isMatch ? 'tnp-cell-input--highlight' : ''}`}
@@ -746,7 +784,7 @@ const TableNotepad = () => {
             {/* Status bar */}
             <div className="tnp-statusbar">
               <div>
-                Total: {activeTable.rows.length} Baris, {activeTable.columns.length} Kolom
+                Total: {activeTable.rows?.length || 0} Baris, {activeTable.columns?.length || 0} Kolom
               </div>
               <div>
                 Status Sync:{' '}
