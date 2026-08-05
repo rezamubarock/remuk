@@ -30,7 +30,7 @@ const Notepad = () => {
   const [syncStatus, setSyncStatus] = useState('local'); // 'local' | 'synced' | 'saving' | 'error'
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [creationPassword, setCreationPassword] = useState('');
-  const [passwordError, setPasswordError] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [pendingKey, setPendingKey] = useState('');
 
   // Local IP-based network sync key
@@ -193,12 +193,17 @@ const Notepad = () => {
     e.preventDefault();
     if (!creationPassword || isVerifying) return;
     setIsVerifying(true);
-    setPasswordError(false);
+    setPasswordError('');
 
     try {
       const trimmed = creationPassword.trim().toLowerCase();
       const hashed = await sha256(trimmed);
       if (hashed === CREATION_HASH_TARGET) {
+        if (!firebaseService?.db) {
+          setPasswordError('Layanan database belum terhubung. Periksa koneksi internet.');
+          return;
+        }
+
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = doc(firebaseService.db, 'notes', pendingKey);
         
@@ -212,11 +217,11 @@ const Notepad = () => {
         setCreationPassword('');
         connectToKey(pendingKey);
       } else {
-        setPasswordError(true);
+        setPasswordError('Password salah!');
       }
     } catch (err) {
       console.error('Failed to create new sync doc:', err);
-      setPasswordError(true);
+      setPasswordError(err.message || 'Gagal membuat database baru.');
     } finally {
       setIsVerifying(false);
     }
@@ -395,7 +400,7 @@ const Notepad = () => {
                 className={`np-settings-input ${passwordError ? 'np-settings-input--error' : ''}`}
                 autoFocus
               />
-              {passwordError && <p className="np-error-text">Password salah!</p>}
+              {passwordError && <p className="np-error-text">{passwordError}</p>}
               <div className="np-btn-row">
                 <button type="submit" className="np-btn np-btn--accent" disabled={isVerifying || !creationPassword}>
                   {isVerifying ? '⏳ Memproses...' : 'Buat'}

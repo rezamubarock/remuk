@@ -44,7 +44,7 @@ const TableNotepad = () => {
   const [syncStatus, setSyncStatus] = useState('local'); // 'local' | 'synced' | 'saving' | 'error'
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [creationPassword, setCreationPassword] = useState('');
-  const [passwordError, setPasswordError] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [pendingKey, setPendingKey] = useState('');
 
   // Local IP-based network sync key
@@ -218,12 +218,17 @@ const TableNotepad = () => {
     e.preventDefault();
     if (!creationPassword || isVerifying) return;
     setIsVerifying(true);
-    setPasswordError(false);
+    setPasswordError('');
 
     try {
       const trimmed = creationPassword.trim().toLowerCase();
       const hashed = await sha256(trimmed);
       if (hashed === CREATION_HASH_TARGET) {
+        if (!firebaseService?.db) {
+          setPasswordError('Layanan database belum terhubung. Periksa koneksi internet.');
+          return;
+        }
+
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = getDocRef(firebaseService.db, doc, pendingKey);
 
@@ -237,11 +242,11 @@ const TableNotepad = () => {
         setCreationPassword('');
         connectToKey(pendingKey);
       } else {
-        setPasswordError(true);
+        setPasswordError('Password salah!');
       }
     } catch (err) {
       console.error('Failed to create new sync doc:', err);
-      setPasswordError(true);
+      setPasswordError(err.message || 'Gagal membuat database baru.');
     } finally {
       setIsVerifying(false);
     }
@@ -543,7 +548,7 @@ const TableNotepad = () => {
                 className={`tnp-modal-input ${passwordError ? 'tnp-modal-input--error' : ''}`}
                 autoFocus
               />
-              {passwordError && <p className="tnp-error-text">Password salah!</p>}
+              {passwordError && <p className="tnp-error-text">{passwordError}</p>}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button type="submit" className="tnp-btn tnp-btn--accent" disabled={isVerifying || !creationPassword}>
                   {isVerifying ? '⏳ Memproses...' : 'Buat'}
