@@ -460,7 +460,7 @@ const TableNotepad = () => {
       {showSettings && (
         <div className="tnp-modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="tnp-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Sinkronisasi Cloud & Jaringan (Notepad Tabel)</h3>
+            <h3>Sinkronisasi Cloud & Jaringan (Tabel)</h3>
 
             {syncKey ? (
               <div>
@@ -543,7 +543,7 @@ const TableNotepad = () => {
       <div className={`tnp-sidebar ${isSidebarOpen ? 'tnp-sidebar--open' : ''}`}>
         <div className="tnp-sidebar__header">
           <div className="tnp-sidebar__actions">
-            <button className="tnp-btn tnp-btn--ghost tnp-btn--sm" onClick={() => setShowSettings(true)} title="Pengaturan Sync">
+            <button className="tnp-btn tnp-btn--ghost tnp-btn--sm" onClick={() => setShowSettings(true)} title="Pengaturan Sync Database">
               {syncKey ? '🟢 Sync' : '📶 Lokal'}
             </button>
             <button className="tnp-btn tnp-btn--success tnp-btn--sm" onClick={handleAddTable}>
@@ -602,6 +602,13 @@ const TableNotepad = () => {
                   title="Daftar Tabel"
                 >
                   ☰
+                </button>
+                <button
+                  className="tnp-btn tnp-btn--ghost tnp-btn--sm tnp-sync-quick-btn"
+                  onClick={() => setShowSettings(true)}
+                  title="Koneksi Database / Sync"
+                >
+                  {syncKey ? '🟢 Sync' : '📶 Sync'}
                 </button>
                 <input
                   type="text"

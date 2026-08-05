@@ -95,7 +95,7 @@ export const TOOLS = [
   },
   {
     id: 'table-notepad',
-    name: 'Notepad Tabel',
+    name: 'Tabel',
     icon: '📊',
     description: 'Catatan berbentuk tabel interaktif dengan sinkronisasi realtime',
     category: 'produktivitas',
