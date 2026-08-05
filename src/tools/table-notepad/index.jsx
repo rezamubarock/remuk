@@ -120,6 +120,12 @@ const TableNotepad = () => {
     return 'tbl_local_network_fallback';
   };
 
+  // Helper to ensure target collection is always 'notes'
+  const getDocRef = useCallback((db, doc, key) => {
+    const docKey = key.startsWith('tbl_') ? key : `tbl_${key}`;
+    return doc(db, 'notes', docKey);
+  }, []);
+
   // ─── Firestore listener setup ───
   const connectToKey = useCallback(async (key, isAutoLocal = false) => {
     if (!firebaseService?.db) return;
@@ -127,11 +133,11 @@ const TableNotepad = () => {
 
     try {
       const { doc, getDoc, setDoc, onSnapshot } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'table_notes', key);
+      const docRef = getDocRef(firebaseService.db, doc, key);
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        if (isAutoLocal || key.startsWith('tbl_local_')) {
+        if (isAutoLocal || key.startsWith('tbl_local_') || key.startsWith('local_')) {
           const initialTables = tablesStateRef.current.length > 0 ? tablesStateRef.current : [createDefaultTable()];
           await setDoc(docRef, { tables: initialTables });
         } else {
@@ -143,7 +149,7 @@ const TableNotepad = () => {
       } else {
         const data = docSnap.data();
         const remoteTables = data.tables || [];
-        if (remoteTables.length === 0 && tablesStateRef.current.length > 0 && (isAutoLocal || key.startsWith('tbl_local_'))) {
+        if (remoteTables.length === 0 && tablesStateRef.current.length > 0 && (isAutoLocal || key.startsWith('tbl_local_') || key.startsWith('local_'))) {
           await setDoc(docRef, { tables: tablesStateRef.current });
         }
       }
@@ -182,7 +188,7 @@ const TableNotepad = () => {
       console.error('Connection failed:', err);
       setSyncStatus('error');
     }
-  }, [firebaseService]);
+  }, [firebaseService, getDocRef]);
 
   // ─── Auto connect / local sync key setup ───
   useEffect(() => {
@@ -214,7 +220,7 @@ const TableNotepad = () => {
       const hashed = await sha256(creationPassword);
       if (hashed === CREATION_HASH_TARGET) {
         const { doc, setDoc } = await getFirestoreHelpers();
-        const docRef = doc(firebaseService.db, 'table_notes', pendingKey);
+        const docRef = getDocRef(firebaseService.db, doc, pendingKey);
 
         const initialTables = tablesStateRef.current.length > 0
           ? tablesStateRef.current
@@ -259,7 +265,7 @@ const TableNotepad = () => {
       debounceTimerRef.current = setTimeout(async () => {
         try {
           const { doc, setDoc } = await getFirestoreHelpers();
-          const docRef = doc(firebaseService.db, 'table_notes', targetKey);
+          const docRef = getDocRef(firebaseService.db, doc, targetKey);
           await setDoc(docRef, { tables: updatedTables });
           setSyncStatus('synced');
         } catch (e) {
@@ -270,7 +276,7 @@ const TableNotepad = () => {
     } else {
       setSyncStatus('local');
     }
-  }, [isConnected, syncKey, localNetKey, firebaseService]);
+  }, [isConnected, syncKey, localNetKey, firebaseService, getDocRef]);
 
   // ─── Table Actions ───
   const handleAddTable = () => {
