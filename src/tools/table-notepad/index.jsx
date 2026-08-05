@@ -212,12 +212,17 @@ const TableNotepad = () => {
   }, []);
 
   // ─── Password verification for custom database ───
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const handleVerifyPassword = async (e) => {
     e.preventDefault();
+    if (!creationPassword || isVerifying) return;
+    setIsVerifying(true);
     setPasswordError(false);
 
     try {
-      const hashed = await sha256(creationPassword);
+      const trimmed = creationPassword.trim().toLowerCase();
+      const hashed = await sha256(trimmed);
       if (hashed === CREATION_HASH_TARGET) {
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = getDocRef(firebaseService.db, doc, pendingKey);
@@ -236,6 +241,9 @@ const TableNotepad = () => {
       }
     } catch (err) {
       console.error('Failed to create new sync doc:', err);
+      setPasswordError(true);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -505,7 +513,7 @@ const TableNotepad = () => {
               </label>
               <input
                 type="text"
-                placeholder="Masukkan Sync Key (misal: rausyani)"
+                placeholder="Masukkan Sync Key (misal: data-proyek)"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
                 className="tnp-modal-input"
@@ -537,7 +545,9 @@ const TableNotepad = () => {
               />
               {passwordError && <p className="tnp-error-text">Password salah!</p>}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="submit" className="tnp-btn tnp-btn--accent">Buat</button>
+                <button type="submit" className="tnp-btn tnp-btn--accent" disabled={isVerifying || !creationPassword}>
+                  {isVerifying ? '⏳ Memproses...' : 'Buat'}
+                </button>
                 <button type="button" onClick={() => setShowPasswordPrompt(false)} className="tnp-btn tnp-btn--ghost">Batal</button>
               </div>
             </form>

@@ -187,12 +187,17 @@ const Notepad = () => {
   }, []);
 
   // ─── Password verification for custom database ───
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const handleVerifyPassword = async (e) => {
     e.preventDefault();
+    if (!creationPassword || isVerifying) return;
+    setIsVerifying(true);
     setPasswordError(false);
 
     try {
-      const hashed = await sha256(creationPassword);
+      const trimmed = creationPassword.trim().toLowerCase();
+      const hashed = await sha256(trimmed);
       if (hashed === CREATION_HASH_TARGET) {
         const { doc, setDoc } = await getFirestoreHelpers();
         const docRef = doc(firebaseService.db, 'notes', pendingKey);
@@ -211,6 +216,9 @@ const Notepad = () => {
       }
     } catch (err) {
       console.error('Failed to create new sync doc:', err);
+      setPasswordError(true);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -357,7 +365,7 @@ const Notepad = () => {
               <label>Gunakan Sync Key Kustom (Beda Jaringan):</label>
               <input
                 type="text"
-                placeholder="Masukkan Sync Key (misal: rausyani)"
+                placeholder="Masukkan Sync Key (misal: catatan-tim)"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
                 className="np-settings-input"
@@ -389,7 +397,9 @@ const Notepad = () => {
               />
               {passwordError && <p className="np-error-text">Password salah!</p>}
               <div className="np-btn-row">
-                <button type="submit" className="np-btn np-btn--accent">Buat</button>
+                <button type="submit" className="np-btn np-btn--accent" disabled={isVerifying || !creationPassword}>
+                  {isVerifying ? '⏳ Memproses...' : 'Buat'}
+                </button>
                 <button type="button" onClick={() => setShowPasswordPrompt(false)} className="np-btn np-btn--ghost">Batal</button>
               </div>
             </form>
