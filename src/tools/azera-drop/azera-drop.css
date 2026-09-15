@@ -584,16 +584,115 @@
   .azera-right {
     height: auto;
     flex: 1;
+    position: relative;
+    padding-bottom: 70px; /* Leave space for bottom tray if peers present */
   }
 
   .azera-radar-container {
-    width: 290px;
-    height: 290px;
+    width: 280px;
+    height: 280px;
+  }
+
+  .radar-center__avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+  }
+
+  .radar-peer__avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .radar-peer__label {
+    font-size: 10px;
+    max-width: 68px;
   }
 
   /* Shrink concentric rings sizes on mobile to avoid overflow */
-  .ring--1 { width: 80px; height: 80px; }
-  .ring--2 { width: 150px; height: 150px; }
-  .ring--3 { width: 220px; height: 220px; }
-  .ring--4 { width: 290px; height: 290px; }
+  .ring--1 { width: 75px; height: 75px; }
+  .ring--2 { width: 140px; height: 140px; }
+  .ring--3 { width: 210px; height: 210px; }
+  .ring--4 { width: 280px; height: 280px; }
+
+  /* Mobile quick peer list tray */
+  .azera-mobile-peer-list {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: rgba(18, 18, 30, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .azera-mobile-peer-list__title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .azera-mobile-peer-list__items {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    width: 100%;
+    justify-content: flex-start;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .azera-mobile-peer-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10, 132, 255, 0.15);
+    border: 1px solid rgba(10, 132, 255, 0.35);
+    border-radius: 10px;
+    padding: 6px 12px;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .azera-mobile-peer-chip:active {
+    background: var(--color-accent);
+    transform: scale(0.97);
+  }
+
+  .azera-mobile-peer-chip .avatar {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .azera-mobile-peer-chip .name {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .azera-mobile-peer-chip .action {
+    font-size: 10px;
+    color: var(--color-accent-alt);
+    background: rgba(48, 209, 88, 0.15);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
 }

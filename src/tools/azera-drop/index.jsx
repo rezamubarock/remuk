@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useService } from '@core/hooks/useService';
+import { useDevice } from '@core/hooks/useDevice';
 import './azera-drop.css';
 
 const sha256 = async (string) => {
@@ -134,6 +135,7 @@ const flushIceCandidateQueue = async (pc, queueRef) => {
 
 const AzeraDrop = () => {
   const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');
+  const { isMobile } = useDevice();
 
   // Peer specifications (Persisted locally to keep same emoji/ID)
   const [peerId] = useState(() => {
@@ -219,23 +221,36 @@ const AzeraDrop = () => {
         const docRef = doc(firebaseService.db, 'notes', `drop_peers_${networkKey}`);
         
         const updateHeartbeat = async () => {
-          await setDoc(docRef, {
-            peers: {
-              [peerId]: {
-                id: peerId,
-                name: myName,
-                avatar: myAvatar,
-                lastSeen: Date.now()
+          try {
+            await setDoc(docRef, {
+              peers: {
+                [peerId]: {
+                  id: peerId,
+                  name: myName,
+                  avatar: myAvatar,
+                  lastSeen: Date.now()
+                }
               }
-            }
-          }, { merge: true });
+            }, { merge: true });
+          } catch (e) {
+            console.warn('[AzeraDrop] Heartbeat write error:', e);
+          }
         };
 
         await updateHeartbeat();
         heartbeatInterval = setInterval(updateHeartbeat, 4000);
 
+        // Instantly refresh heartbeat when mobile browser tab becomes visible again
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
+            updateHeartbeat();
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return async () => {
           clearInterval(heartbeatInterval);
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
           try {
             await setDoc(docRef, {
               peers: {
@@ -297,9 +312,24 @@ const AzeraDrop = () => {
           const data = snapshot.data();
           const peersMap = data.peers || {};
           const list = [];
+          const now = Date.now();
+
           Object.keys(peersMap).forEach((id) => {
-            if (id !== peerId && Date.now() - peersMap[id].lastSeen < 12000) {
-              list.push(peersMap[id]);
+            if (id === peerId) return; // Don't show myself
+            const p = peersMap[id];
+            if (!p) return;
+
+            const lastSeen = Number(p.lastSeen) || now;
+            // Protect against clock skew between mobile and desktop:
+            // If lastSeen is in the future (skew), age is 0. If in the past, now - lastSeen.
+            const age = now >= lastSeen ? (now - lastSeen) : 0;
+
+            // Consider peer active if updated within 60 seconds
+            if (age < 60000) {
+              list.push({
+                ...p,
+                id: p.id || id
+              });
             }
           });
           setPeers(list);
@@ -1043,7 +1073,8 @@ const AzeraDrop = () => {
             {/* Discovered Peers floating around radar */}
             {peers.map((peer, idx) => {
               const angle = (idx * (360 / Math.max(1, peers.length)) * Math.PI) / 180;
-              const radius = 110 + (idx % 2 === 0 ? 0 : 25);
+              const baseRadius = isMobile ? 80 : 110;
+              const radius = baseRadius + (idx % 2 === 0 ? 0 : (isMobile ? 15 : 25));
               const x = Math.cos(angle) * radius;
               const y = Math.sin(angle) * radius;
 
@@ -1065,6 +1096,26 @@ const AzeraDrop = () => {
               );
             })}
           </div>
+
+          {/* Quick peer list bar for mobile when devices are found */}
+          {peers.length > 0 && isMobile && (
+            <div className="azera-mobile-peer-list">
+              <span className="azera-mobile-peer-list__title">Perangkat Ditemukan ({peers.length}):</span>
+              <div className="azera-mobile-peer-list__items">
+                {peers.map((peer) => (
+                  <button
+                    key={peer.id}
+                    onClick={() => handlePeerClick(peer)}
+                    className="azera-mobile-peer-chip"
+                  >
+                    <span className="avatar">{peer.avatar}</span>
+                    <span className="name">{peer.name}</span>
+                    <span className="action">Kirim ➔</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {peers.length === 0 && (
             <div className="radar-searching">
