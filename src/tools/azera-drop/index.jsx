@@ -37,7 +37,7 @@ const playNotificationSound = () => {
     playNote(659.25, now, 0.2); // E5
     playNote(880.00, now + 0.1, 0.4); // A5
   } catch (e) {
-    // browser blocks audio before interaction
+    // Audio might be blocked if user hasn't interacted with document yet
   }
 };
 
@@ -72,6 +72,66 @@ const getStableAvatar = (id) => {
   return DEFAULT_AVATARS[Math.abs(charSum) % DEFAULT_AVATARS.length];
 };
 
+// WebRTC Configuration with multiple reliable STUN servers
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ]
+};
+
+// Helper: Wait for ICE gathering to complete before sending SDP (Vanilla ICE)
+// This embeds all local LAN IP and STUN candidates directly inside the SDP offer/answer!
+const waitForIceGathering = (pc, maxTimeoutMs = 1200) => {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') {
+      resolve();
+      return;
+    }
+    let timer = null;
+    const checkState = () => {
+      if (pc.iceGatheringState === 'complete') {
+        if (timer) clearTimeout(timer);
+        pc.removeEventListener('icegatheringstatechange', checkState);
+        resolve();
+      }
+    };
+    pc.addEventListener('icegatheringstatechange', checkState);
+    timer = setTimeout(() => {
+      pc.removeEventListener('icegatheringstatechange', checkState);
+      resolve();
+    }, maxTimeoutMs);
+  });
+};
+
+// Helper: Safe candidate adding with queue if remote description isn't set yet
+const addIceCandidateSafe = async (pc, candidate, queueRef) => {
+  if (!pc || !candidate) return;
+  try {
+    if (pc.remoteDescription && pc.remoteDescription.type) {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } else {
+      queueRef.current.push(candidate);
+    }
+  } catch (e) {
+    console.warn('[AzeraDrop] addIceCandidate error:', e);
+  }
+};
+
+const flushIceCandidateQueue = async (pc, queueRef) => {
+  if (!pc || !pc.remoteDescription) return;
+  while (queueRef.current.length > 0) {
+    const cand = queueRef.current.shift();
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(cand));
+    } catch (e) {
+      console.warn('[AzeraDrop] flush candidate error:', e);
+    }
+  }
+};
+
 const AzeraDrop = () => {
   const { isReady: isFirebaseReady, service: firebaseService } = useService('firebase-firestore');
 
@@ -93,18 +153,28 @@ const AzeraDrop = () => {
   const [customRoomCode, setCustomRoomCode] = useState(() => localStorage.getItem('remuk_azera_room') || '');
   const [peers, setPeers] = useState([]);
   
-  const [incomingTransfer, setIncomingTransfer] = useState(null); // { senderName, senderIcon, fileName, fileSize, progress, status... }
-  const [outgoingTransfer, setOutgoingTransfer] = useState(null); // { peer, fileName, progress, status, error }
+  const [incomingTransfer, setIncomingTransfer] = useState(null); // { id, senderId, senderName, senderIcon, fileName, fileSize, progress, status, error, offer, totalBytes, fileType }
+  const [outgoingTransfer, setOutgoingTransfer] = useState(null); // { id, peer, fileName, progress, status, error }
   const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'info' (for mobile layout)
   
   const fileInputRef = useRef(null);
   const selectedPeerRef = useRef(null);
+
+  // Refs for tracking current transfers inside Firestore callbacks without stale closures
+  const incomingTransferRef = useRef(null);
+  const outgoingTransferRef = useRef(null);
+  useEffect(() => { incomingTransferRef.current = incomingTransfer; }, [incomingTransfer]);
+  useEffect(() => { outgoingTransferRef.current = outgoingTransfer; }, [outgoingTransfer]);
 
   // WebRTC refs
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null);
   const receivedChunksRef = useRef([]);
   const receivedSizeRef = useRef(0);
+  const transferMetaRef = useRef(null);
+  const iceQueueRef = useRef([]);
+  const processedCandidatesRef = useRef(new Set());
+  const connectionTimeoutRef = useRef(null);
 
   // Firestore helpers
   const getFirestoreHelpers = async () => {
@@ -164,7 +234,6 @@ const AzeraDrop = () => {
         await updateHeartbeat();
         heartbeatInterval = setInterval(updateHeartbeat, 4000);
 
-        // Cleanup on unmount
         return async () => {
           clearInterval(heartbeatInterval);
           try {
@@ -192,19 +261,26 @@ const AzeraDrop = () => {
 
   // Clean up WebRTC resources helper
   const closeWebRTC = () => {
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
     if (dataChannelRef.current) {
-      dataChannelRef.current.close();
+      try { dataChannelRef.current.close(); } catch (e) {}
       dataChannelRef.current = null;
     }
     if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
+      try { peerConnectionRef.current.close(); } catch (e) {}
       peerConnectionRef.current = null;
     }
     receivedChunksRef.current = [];
     receivedSizeRef.current = 0;
+    transferMetaRef.current = null;
+    iceQueueRef.current = [];
+    processedCandidatesRef.current.clear();
   };
 
-  // Listen to peer list & incoming WebRTC transfers in Firestore (/notes/drop_transfers_ROOM)
+  // Unified Firestore Listeners: active peers list & transfer signals
   useEffect(() => {
     if (!isFirebaseReady || !firebaseService?.db || !networkKey) return;
 
@@ -232,49 +308,85 @@ const AzeraDrop = () => {
         }
       });
 
-      // 2. Listen for WebRTC connection offers targeting me
+      // 2. Listen for active transfers (both incoming offers & outgoing responses)
       const transfersDocRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       unsubTransfers = onSnapshot(transfersDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          const transfersMap = data.transfers || {};
-          
-          Object.keys(transfersMap).forEach(async (id) => {
-            const trans = transfersMap[id];
-            if (trans.receiverId === peerId) {
-              // Case A: Sender has created a pending request & SDP Offer
-              if (trans.status === 'pending' && (!incomingTransfer || incomingTransfer.id !== trans.id)) {
+        if (!snapshot.exists()) return;
+        const data = snapshot.data();
+        const transfersMap = data.transfers || {};
+
+        Object.keys(transfersMap).forEach(async (id) => {
+          const trans = transfersMap[id];
+          if (!trans) return;
+
+          // ─── ROLE A: RECEIVER ───
+          if (trans.receiverId === peerId) {
+            // New incoming transfer request
+            if (trans.status === 'pending') {
+              if (!incomingTransferRef.current || incomingTransferRef.current.id !== trans.id) {
                 playNotificationSound();
                 setIncomingTransfer({ ...trans, progress: 0 });
               }
-              // Case B: Receiver has accepted, waiting for SDP Answer connection on Sender side
-              else if (trans.status === 'accepted' && outgoingTransfer?.id === trans.id) {
-                if (trans.answer && peerConnectionRef.current && !peerConnectionRef.current.currentRemoteDescription) {
-                  try {
-                    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(trans.answer));
-                    
-                    // Add receiver candidates
-                    if (trans.receiverCandidates) {
-                      trans.receiverCandidates.forEach((cand) => {
-                        peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
-                      });
-                    }
-                  } catch (e) {
-                    console.error('Failed to set remote answer description:', e);
+            }
+
+            // Late ICE candidates from sender during accepted state
+            if (trans.status === 'accepted' && incomingTransferRef.current?.id === trans.id) {
+              if (trans.senderCandidates && peerConnectionRef.current) {
+                trans.senderCandidates.forEach((cand) => {
+                  const candKey = cand.candidate || JSON.stringify(cand);
+                  if (!processedCandidatesRef.current.has(candKey)) {
+                    processedCandidatesRef.current.add(candKey);
+                    addIceCandidateSafe(peerConnectionRef.current, cand, iceQueueRef);
                   }
-                }
-              }
-              // Case C: Sender or Receiver has completed/declined
-              else if (trans.status === 'declined' && outgoingTransfer?.id === trans.id) {
-                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
-                closeWebRTC();
-              } else if (trans.status === 'completed' && outgoingTransfer?.id === trans.id) {
-                setOutgoingTransfer((prev) => prev ? { ...prev, status: 'completed' } : null);
-                closeWebRTC();
+                });
               }
             }
-          });
-        }
+
+            // Sender cancelled request
+            if (trans.status === 'cancelled' && incomingTransferRef.current?.id === trans.id) {
+              setIncomingTransfer(null);
+              closeWebRTC();
+            }
+          }
+
+          // ─── ROLE B: SENDER ───
+          if (trans.senderId === peerId && outgoingTransferRef.current?.id === trans.id) {
+            // Receiver accepted and sent SDP Answer
+            if (trans.status === 'accepted' && trans.answer && peerConnectionRef.current) {
+              if (peerConnectionRef.current.signalingState === 'have-local-offer') {
+                try {
+                  console.log('[AzeraDrop] Sender received SDP answer, setting remote description...');
+                  await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(trans.answer));
+                  await flushIceCandidateQueue(peerConnectionRef.current, iceQueueRef);
+                } catch (e) {
+                  console.error('[AzeraDrop] Failed to set remote answer description:', e);
+                }
+              }
+
+              // Late ICE candidates from receiver
+              if (trans.receiverCandidates && peerConnectionRef.current) {
+                trans.receiverCandidates.forEach((cand) => {
+                  const candKey = cand.candidate || JSON.stringify(cand);
+                  if (!processedCandidatesRef.current.has(candKey)) {
+                    processedCandidatesRef.current.add(candKey);
+                    addIceCandidateSafe(peerConnectionRef.current, cand, iceQueueRef);
+                  }
+                });
+              }
+            }
+
+            // Receiver declined
+            if (trans.status === 'declined') {
+              setOutgoingTransfer((prev) => prev ? { ...prev, status: 'declined' } : null);
+              closeWebRTC();
+            }
+
+            // Completed on receiver
+            if (trans.status === 'completed' && outgoingTransferRef.current?.status !== 'completed') {
+              setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'completed' } : null);
+            }
+          }
+        });
       });
     };
 
@@ -284,52 +396,18 @@ const AzeraDrop = () => {
       if (unsubPeers) unsubPeers();
       if (unsubTransfers) unsubTransfers();
     };
-  }, [isFirebaseReady, firebaseService, networkKey, peerId, outgoingTransfer?.id, incomingTransfer]);
-
-  // Listen to remote changes in transfers Doc for ICE candidates updates on active connection
-  useEffect(() => {
-    if (!isFirebaseReady || !firebaseService?.db || !networkKey || !outgoingTransfer) return;
-
-    let unsub;
-    const listenOutgoingSDP = async () => {
-      const { doc, onSnapshot } = await getFirestoreHelpers();
-      const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
-      
-      unsub = onSnapshot(docRef, (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          const transfersMap = data.transfers || {};
-          const trans = transfersMap[outgoingTransfer.id];
-          if (trans) {
-            if (trans.status === 'accepted' && trans.answer && peerConnectionRef.current && !peerConnectionRef.current.currentRemoteDescription) {
-              peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(trans.answer))
-                .catch(() => {});
-            }
-            if (trans.receiverCandidates && peerConnectionRef.current) {
-              trans.receiverCandidates.forEach((cand) => {
-                peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
-              });
-            }
-          }
-        }
-      });
-    };
-
-    listenOutgoingSDP();
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [isFirebaseReady, firebaseService, networkKey, outgoingTransfer?.id]);
+  }, [isFirebaseReady, firebaseService, networkKey, peerId]);
 
   // Handle peer selection for file sharing
   const handlePeerClick = (peer) => {
     selectedPeerRef.current = peer;
     if (fileInputRef.current) {
+      fileInputRef.current.value = '';
       fileInputRef.current.click();
     }
   };
 
-  // Sender: Initialize P2P connection, send SDP Offer and register file metadata
+  // Sender: Initialize P2P connection, gather candidates, send SDP Offer and stream file
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     const peer = selectedPeerRef.current;
@@ -347,82 +425,148 @@ const AzeraDrop = () => {
       error: null
     });
 
-    try {
-      // 1. Setup RTCPeerConnection with public STUN servers
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      });
-      peerConnectionRef.current = pc;
+    // 30s timeout guard
+    if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (outgoingTransferRef.current?.status === 'connecting') {
+        setOutgoingTransfer((prev) => prev ? {
+          ...prev,
+          status: 'error',
+          error: 'Koneksi jalur P2P timeout. Pastikan kedua perangkat berada di jaringan Wi-Fi yang sama atau coba gunakan Room Manual.'
+        } : null);
+        closeWebRTC();
+      }
+    }, 30000);
 
-      // 2. Create P2P DataChannel
+    try {
+      // 1. Setup RTCPeerConnection
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+      peerConnectionRef.current = pc;
+      iceQueueRef.current = [];
+      processedCandidatesRef.current.clear();
+
+      // Monitor ICE and connection states
+      pc.oniceconnectionstatechange = () => {
+        console.log('[AzeraDrop Sender] ICE state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('[AzeraDrop Sender] Connection state:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+        } else if (pc.connectionState === 'failed') {
+          setOutgoingTransfer((prev) => prev ? {
+            ...prev,
+            status: 'error',
+            error: 'Jalur P2P gagal tersambung. Pastikan firewall tidak memblokir koneksi lokal.'
+          } : null);
+          closeWebRTC();
+        }
+      };
+
+      // 2. Setup DataChannel
       const dc = pc.createDataChannel('fileTransfer', { ordered: true });
       dc.binaryType = 'arraybuffer';
       dataChannelRef.current = dc;
 
-      // 3. Collect ICE candidates
-      const senderCandidates = [];
-      pc.onicecandidate = async (ev) => {
+      // 3. Trickle ICE candidate handler (debounced)
+      const senderCandidatesList = [];
+      let candidateTimer = null;
+      pc.onicecandidate = (ev) => {
         if (ev.candidate) {
-          senderCandidates.push(ev.candidate.toJSON());
-          const { doc, setDoc } = await getFirestoreHelpers();
-          const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
-          await setDoc(docRef, {
-            transfers: {
-              [transferId]: { senderCandidates }
-            }
-          }, { merge: true });
-        }
-      };
-
-      // 4. Data channel open trigger -> start streaming raw file buffer chunks
-      dc.onopen = () => {
-        setOutgoingTransfer((prev) => prev ? { ...prev, status: 'sending', progress: 0 } : null);
-        
-        const fileReader = new FileReader();
-        fileReader.onload = (event) => {
-          const buffer = event.target.result;
-          const chunkSize = 16384; // 16KB standard frame size
-          let offset = 0;
-          
-          const sendChunk = () => {
-            while (offset < buffer.byteLength) {
-              if (dc.bufferedAmount > 65535) { // wait if WebRTC buffer is full
-                setTimeout(sendChunk, 40);
-                return;
-              }
-              const chunk = buffer.slice(offset, offset + chunkSize);
-              dc.send(chunk);
-              offset += chunkSize;
-              
-              const progress = Math.min(99, Math.floor((offset / buffer.byteLength) * 100));
-              setOutgoingTransfer((prev) => prev ? { ...prev, progress } : null);
-            }
-            
-            // Send End-Of-File (EOF) completion token
-            dc.send('EOF_SIGNAL');
-            setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'completed' } : null);
-            
-            // Update Firestore transfer status
-            getFirestoreHelpers().then(async ({ doc, setDoc }) => {
+          senderCandidatesList.push(ev.candidate.toJSON());
+          if (candidateTimer) clearTimeout(candidateTimer);
+          candidateTimer = setTimeout(async () => {
+            try {
+              const { doc, setDoc } = await getFirestoreHelpers();
               const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
               await setDoc(docRef, {
                 transfers: {
-                  [transferId]: { status: 'completed' }
+                  [transferId]: { senderCandidates: [...senderCandidatesList] }
                 }
               }, { merge: true });
-            });
-          };
-          
-          sendChunk();
+            } catch (e) {}
+          }, 150);
+        }
+      };
+
+      // 4. Data channel open trigger -> Stream file in slices
+      dc.onopen = () => {
+        console.log('[AzeraDrop] DataChannel is OPEN on Sender! Starting data stream...');
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+
+        setOutgoingTransfer((prev) => prev ? { ...prev, status: 'sending', progress: 0 } : null);
+        
+        const chunkSize = 16384; // 16KB per frame
+        let offset = 0;
+        const fileReader = new FileReader();
+
+        const readNextChunk = () => {
+          if (!dataChannelRef.current || dataChannelRef.current.readyState !== 'open') return;
+          const slice = file.slice(offset, offset + chunkSize);
+          fileReader.readAsArrayBuffer(slice);
         };
-        fileReader.readAsArrayBuffer(file);
+
+        fileReader.onload = (event) => {
+          if (!dataChannelRef.current || dataChannelRef.current.readyState !== 'open') return;
+          
+          const buffer = event.target.result;
+          dataChannelRef.current.send(buffer);
+          offset += buffer.byteLength;
+          
+          const progress = Math.min(99, Math.floor((offset / file.size) * 100));
+          setOutgoingTransfer((prev) => prev ? { ...prev, progress } : null);
+
+          if (offset < file.size) {
+            // Buffer flow control to prevent memory overflow
+            if (dataChannelRef.current.bufferedAmount > 65536 * 4) {
+              setTimeout(readNextChunk, 20);
+            } else {
+              readNextChunk();
+            }
+          } else {
+            // Send EOF signal token
+            console.log('[AzeraDrop] File stream complete, sending EOF_SIGNAL...');
+            dataChannelRef.current.send('EOF_SIGNAL');
+            setOutgoingTransfer((prev) => prev ? { ...prev, progress: 100, status: 'completed' } : null);
+            
+            // Mark complete in Firestore
+            getFirestoreHelpers().then(async ({ doc, setDoc }) => {
+              try {
+                const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+                await setDoc(docRef, {
+                  transfers: {
+                    [transferId]: { status: 'completed' }
+                  }
+                }, { merge: true });
+              } catch (e) {}
+            });
+          }
+        };
+
+        readNextChunk();
       };
 
       // 5. Create local SDP Offer
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // 6. Push Offer & metadata to transfers room doc
+      // Wait for complete ICE gathering so offer SDP contains all local and STUN candidates (Vanilla ICE)
+      await waitForIceGathering(pc, 1200);
+
+      // 6. Push complete Offer & metadata to transfers room doc
       const { doc, setDoc } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
@@ -439,69 +583,135 @@ const AzeraDrop = () => {
             fileType: file.type || 'application/octet-stream',
             totalBytes: file.size,
             status: 'pending',
-            offer: { sdp: offer.sdp, type: offer.type },
-            senderCandidates: [],
+            offer: { sdp: pc.localDescription.sdp, type: pc.localDescription.type },
+            senderCandidates: [...senderCandidatesList],
             createdAt: Date.now()
           }
         }
       }, { merge: true });
 
     } catch (err) {
-      console.error(err);
+      console.error('[AzeraDrop] Send file error:', err);
       setOutgoingTransfer((prev) => prev ? { ...prev, status: 'error', error: err.message } : null);
       closeWebRTC();
     }
   };
 
-  // Receiver: Accept P2P connection, register SDP Answer, listen to chunks and trigger Blob download
+  // Receiver: Accept P2P connection, gather candidates, send SDP Answer and receive file
   const handleAccept = async () => {
     if (!incomingTransfer || !firebaseService?.db) return;
-    closeWebRTC();
+    
+    // Save metadata in ref to avoid closure issues
+    const currentTransfer = incomingTransfer;
+    transferMetaRef.current = {
+      id: currentTransfer.id,
+      fileName: currentTransfer.fileName,
+      fileType: currentTransfer.fileType || 'application/octet-stream',
+      totalBytes: currentTransfer.totalBytes
+    };
 
+    closeWebRTC();
     setIncomingTransfer((prev) => prev ? { ...prev, status: 'connecting', progress: 0 } : null);
+
+    // 30s timeout guard
+    if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (incomingTransferRef.current?.status === 'connecting') {
+        setIncomingTransfer((prev) => prev ? {
+          ...prev,
+          status: 'error',
+          error: 'Koneksi jalur P2P timeout. Pastikan kedua perangkat berada di jaringan Wi-Fi yang sama.'
+        } : null);
+        closeWebRTC();
+      }
+    }, 30000);
 
     try {
       // 1. Setup peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      });
+      const pc = new RTCPeerConnection(RTC_CONFIG);
       peerConnectionRef.current = pc;
+      iceQueueRef.current = [];
+      processedCandidatesRef.current.clear();
 
-      // 2. Gather receiver ICE Candidates
-      const receiverCandidates = [];
-      pc.onicecandidate = async (ev) => {
+      pc.oniceconnectionstatechange = () => {
+        console.log('[AzeraDrop Receiver] ICE state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('[AzeraDrop Receiver] Connection state:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+        } else if (pc.connectionState === 'failed') {
+          setIncomingTransfer((prev) => prev ? {
+            ...prev,
+            status: 'error',
+            error: 'Jalur P2P gagal tersambung.'
+          } : null);
+          closeWebRTC();
+        }
+      };
+
+      // 2. Trickle ICE candidate handler (debounced)
+      const receiverCandidatesList = [];
+      let candidateTimer = null;
+      pc.onicecandidate = (ev) => {
         if (ev.candidate) {
-          receiverCandidates.push(ev.candidate.toJSON());
-          const { doc, setDoc } = await getFirestoreHelpers();
-          const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
-          await setDoc(docRef, {
-            transfers: {
-              [incomingTransfer.id]: { receiverCandidates }
-            }
-          }, { merge: true });
+          receiverCandidatesList.push(ev.candidate.toJSON());
+          if (candidateTimer) clearTimeout(candidateTimer);
+          candidateTimer = setTimeout(async () => {
+            try {
+              const { doc, setDoc } = await getFirestoreHelpers();
+              const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
+              await setDoc(docRef, {
+                transfers: {
+                  [currentTransfer.id]: { receiverCandidates: [...receiverCandidatesList] }
+                }
+              }, { merge: true });
+            } catch (e) {}
+          }, 150);
         }
       };
 
       // 3. Listen for data channel creation
       pc.ondatachannel = (ev) => {
+        console.log('[AzeraDrop] Receiver got ondatachannel!');
         const dc = ev.channel;
         dc.binaryType = 'arraybuffer';
         dataChannelRef.current = dc;
 
         dc.onopen = () => {
+          console.log('[AzeraDrop] DataChannel is OPEN on Receiver! Ready to receive data...');
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
           setIncomingTransfer((prev) => prev ? { ...prev, status: 'receiving', progress: 0 } : null);
         };
 
+        receivedChunksRef.current = [];
+        receivedSizeRef.current = 0;
+
         dc.onmessage = (e) => {
-          if (e.data === 'EOF_SIGNAL') {
-            // Reassemble buffer chunks into final downloadable file Blob
-            const fileBlob = new Blob(receivedChunksRef.current, { type: incomingTransfer.fileType });
+          // Check for string EOF token
+          if (typeof e.data === 'string' && e.data === 'EOF_SIGNAL') {
+            console.log('[AzeraDrop] Received EOF_SIGNAL! Assembling file blob...');
+            const meta = transferMetaRef.current || currentTransfer;
+            const fileBlob = new Blob(receivedChunksRef.current, { type: meta.fileType });
             const fileUrl = URL.createObjectURL(fileBlob);
             
             // Trigger instant download
             const a = document.createElement('a');
             a.href = fileUrl;
-            a.download = incomingTransfer.fileName;
+            a.download = meta.fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -510,45 +720,55 @@ const AzeraDrop = () => {
             setIncomingTransfer((prev) => prev ? { ...prev, status: 'completed', progress: 100 } : null);
             closeWebRTC();
           } else {
+            // Binary arraybuffer chunk
             receivedChunksRef.current.push(e.data);
             receivedSizeRef.current += e.data.byteLength;
             
-            const progress = Math.min(99, Math.floor((receivedSizeRef.current / incomingTransfer.totalBytes) * 100));
+            const meta = transferMetaRef.current || currentTransfer;
+            const progress = Math.min(99, Math.floor((receivedSizeRef.current / meta.totalBytes) * 100));
             setIncomingTransfer((prev) => prev ? { ...prev, progress } : null);
           }
         };
       };
 
-      // 4. Set Remote SDP Description (Offer) from Sender
-      await pc.setRemoteDescription(new RTCSessionDescription(incomingTransfer.offer));
+      // 4. Set Remote SDP Description (Offer from Sender)
+      await pc.setRemoteDescription(new RTCSessionDescription(currentTransfer.offer));
+      await flushIceCandidateQueue(pc, iceQueueRef);
+
+      // Add sender candidates if any already arrived
+      if (currentTransfer.senderCandidates) {
+        currentTransfer.senderCandidates.forEach((cand) => {
+          const candKey = cand.candidate || JSON.stringify(cand);
+          if (!processedCandidatesRef.current.has(candKey)) {
+            processedCandidatesRef.current.add(candKey);
+            addIceCandidateSafe(pc, cand, iceQueueRef);
+          }
+        });
+      }
 
       // 5. Generate SDP Answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      // 6. Write Answer & update status to accepted in Firestore
+      // Wait for complete ICE gathering so answer SDP contains all local and STUN candidates (Vanilla ICE)
+      await waitForIceGathering(pc, 1200);
+
+      // 6. Write Answer to Firestore
       const { doc, setDoc } = await getFirestoreHelpers();
       const docRef = doc(firebaseService.db, 'notes', `drop_transfers_${networkKey}`);
       
       await setDoc(docRef, {
         transfers: {
-          [incomingTransfer.id]: {
+          [currentTransfer.id]: {
             status: 'accepted',
-            answer: { sdp: answer.sdp, type: answer.type },
-            receiverCandidates: []
+            answer: { sdp: pc.localDescription.sdp, type: pc.localDescription.type },
+            receiverCandidates: [...receiverCandidatesList]
           }
         }
       }, { merge: true });
 
-      // Add sender candidates if they already exist
-      if (incomingTransfer.senderCandidates) {
-        incomingTransfer.senderCandidates.forEach((cand) => {
-          pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
-        });
-      }
-
     } catch (err) {
-      console.error(err);
+      console.error('[AzeraDrop] Accept transfer error:', err);
       setIncomingTransfer((prev) => prev ? { ...prev, status: 'error', error: err.message } : null);
       closeWebRTC();
     }
@@ -691,6 +911,7 @@ const AzeraDrop = () => {
                 <div className="azera-status">
                   <div className="spinner-mini" />
                   <span>Menghubungkan jalur P2P...</span>
+                  <button onClick={closeIncomingModal} className="btn btn--decline" style={{ marginTop: '14px', width: '100%' }}>Batal</button>
                 </div>
               )}
 
@@ -734,6 +955,7 @@ const AzeraDrop = () => {
                 <div className="azera-status">
                   <div className="spinner-mini" />
                   <span>Menghubungkan jalur P2P...</span>
+                  <button onClick={closeOutgoingModal} className="btn btn--decline" style={{ marginTop: '14px', width: '100%' }}>Batal</button>
                 </div>
               )}
 
